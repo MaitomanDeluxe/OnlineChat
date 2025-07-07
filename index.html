@@ -1,118 +1,57 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>2Dオンラインゲーム（iPad対応）</title>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: #111;
-    }
-    canvas {
-      display: block;
-      margin: auto;
-      background: #222;
-      image-rendering: pixelated;
-    }
-    #log {
-      position: absolute;
-      top: 5px;
-      left: 10px;
-      color: #0f0;
-      font-family: monospace;
-      font-size: 14px;
-      background: rgba(0,0,0,0.6);
-      padding: 3px 8px;
-      border-radius: 6px;
-    }
-  </style>
-</head>
-<body>
-  <canvas id="game"></canvas>
-  <div id="log">🔄 接続待機中…</div>
-
-  <script>
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 640;
-    canvas.height = 480;
-
-    const log = msg => document.getElementById('log').textContent = msg;
-
-    const socket = new WebSocket("wss://2dgame.maikanamaikana.workers.dev/");
-
-    let players = {};
-    let myId = null;
-    let keys = {};
-    let me = { x: 100, y: 100, vy: 0, onGround: false };
-
-    document.addEventListener("keydown", e => keys[e.key] = true);
-    document.addEventListener("keyup", e => keys[e.key] = false);
-
-    function drawPlayer(player, color = 'white') {
-      ctx.fillStyle = color;
-      ctx.fillRect(player.x, player.y, 32, 32);
+export default {
+  async fetch(req, env, ctx) {
+    if (req.headers.get("upgrade") !== "websocket") {
+      return new Response("期待されたWebSocket接続ではありません", { status: 400 });
     }
 
-    function updatePlayer(player) {
-      if (keys['ArrowLeft']) player.x -= 2;
-      if (keys['ArrowRight']) player.x += 2;
-      if (keys['ArrowUp'] && player.onGround) {
-        player.vy = -6;
-        player.onGround = false;
-      }
+    const [client, server] = Object.values(new WebSocketPair());
+    handleSession(server);
+    return new Response(null, { status: 101, webSocket: client });
+  }
+};
 
-      player.vy += 0.3;
-      player.y += player.vy;
+let clients = new Map();
+let idCounter = 0;
 
-      if (player.y > canvas.height - 32) {
-        player.y = canvas.height - 32;
-        player.vy = 0;
-        player.onGround = true;
-      }
+function broadcastPlayers() {
+  const players = {};
+  for (const [id, ws] of clients) {
+    players[id] = ws.state;
+  }
+  const message = JSON.stringify({ players });
+  for (const [, ws] of clients) {
+    try {
+      ws.socket.send(message);
+    } catch (e) {}
+  }
+}
+
+function handleSession(ws) {
+  const id = "player" + (++idCounter);
+  const socket = ws.accept();
+  const state = { x: 100, y: 100, vy: 0, onGround: true };
+  clients.set(id, { socket, state });
+
+  socket.send(JSON.stringify({ id, players: Object.fromEntries([...clients].map(([k, v]) => [k, v.state])) }));
+
+  socket.addEventListener("message", event => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === "ping") return; // pingは無視
+      clients.get(id).state = data;
+      broadcastPlayers();
+    } catch (e) {
+      console.log("不正なデータ", e);
     }
+  });
 
-    function gameLoop() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+  socket.addEventListener("close", () => {
+    clients.delete(id);
+    broadcastPlayers();
+  });
 
-      if (myId && players[myId]) {
-        me = players[myId];
-        updatePlayer(me);
-        socket.send(JSON.stringify(me));
-      }
-
-      for (const id in players) {
-        drawPlayer(players[id], id === myId ? 'lime' : 'cyan');
-      }
-
-      requestAnimationFrame(gameLoop);
-    }
-
-    socket.addEventListener("open", () => {
-      log("✅ WebSocket接続 OK");
-    });
-
-    socket.addEventListener("message", e => {
-      const data = JSON.parse(e.data);
-      if (data.id && !myId) {
-        myId = data.id;
-        log(`🧍 あなたのID: ${myId}`);
-      }
-      players = data.players;
-    });
-
-    socket.addEventListener("close", () => {
-      log("⚠️ 接続が切断されました");
-    });
-
-    socket.addEventListener("error", () => {
-      log("❌ 接続エラー");
-    });
-
-    gameLoop();
-  </script>
-</body>
-</html>
+  socket.addEventListener("error", () => {
+    clients.delete(id);
+    broadcastPlayers();
+  });
+}
