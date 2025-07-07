@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>2Dオンラインゲーム（iPad対応）</title>
+  <title>2Dオンラインゲーム（iPad対応・切断対策）</title>
   <style>
     html, body {
       margin: 0;
@@ -111,6 +111,13 @@
     socket.addEventListener("error", () => {
       log("❌ 接続エラー");
     });
+
+    // ping送信（10秒ごと）
+    setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "ping" }));
+      }
+    }, 10000);
 
     gameLoop();
   </script>
