@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>2Dオンラインプラットフォーマー</title>
+  <title>2Dオンラインゲーム（iPad対応）</title>
   <style>
     html, body {
       margin: 0;
@@ -17,22 +17,37 @@
       background: #222;
       image-rendering: pixelated;
     }
+    #log {
+      position: absolute;
+      top: 5px;
+      left: 10px;
+      color: #0f0;
+      font-family: monospace;
+      font-size: 14px;
+      background: rgba(0,0,0,0.6);
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
   </style>
 </head>
 <body>
   <canvas id="game"></canvas>
+  <div id="log">🔄 接続待機中…</div>
+
   <script>
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
     canvas.width = 640;
     canvas.height = 480;
 
-    const socket = new WebSocket("wss://2dgame.maikanamaikana.workers.dev/");
+    const log = msg => document.getElementById('log').textContent = msg;
 
+    const socket = new WebSocket("wss://2dgame.maikanamaikana.workers.dev/");
 
     let players = {};
     let myId = null;
     let keys = {};
+    let me = { x: 100, y: 100, vy: 0, onGround: false };
 
     document.addEventListener("keydown", e => keys[e.key] = true);
     document.addEventListener("keyup", e => keys[e.key] = false);
@@ -50,10 +65,9 @@
         player.onGround = false;
       }
 
-      player.vy += 0.3; // gravity
+      player.vy += 0.3;
       player.y += player.vy;
 
-      // ground collision
       if (player.y > canvas.height - 32) {
         player.y = canvas.height - 32;
         player.vy = 0;
@@ -64,8 +78,8 @@
     function gameLoop() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const me = players[myId];
-      if (me) {
+      if (myId && players[myId]) {
+        me = players[myId];
         updatePlayer(me);
         socket.send(JSON.stringify(me));
       }
@@ -77,14 +91,25 @@
       requestAnimationFrame(gameLoop);
     }
 
-    socket.addEventListener("message", e => {
-      const data = JSON.parse(e.data);
-      players = data.players;
-      if (!myId && data.id) myId = data.id;
+    socket.addEventListener("open", () => {
+      log("✅ WebSocket接続 OK");
     });
 
-    socket.addEventListener("open", () => {
-      console.log("接続しました");
+    socket.addEventListener("message", e => {
+      const data = JSON.parse(e.data);
+      if (data.id && !myId) {
+        myId = data.id;
+        log(`🧍 あなたのID: ${myId}`);
+      }
+      players = data.players;
+    });
+
+    socket.addEventListener("close", () => {
+      log("⚠️ 接続が切断されました");
+    });
+
+    socket.addEventListener("error", () => {
+      log("❌ 接続エラー");
     });
 
     gameLoop();
