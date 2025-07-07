@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2Dオンラインプラットフォーマー</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #111;
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      background: #222;
+      image-rendering: pixelated;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 640;
+    canvas.height = 480;
+
+    const socket = new WebSocket("wss://YOUR_CLOUDFLARE_WORKERS_URL_HERE");
+
+    let players = {};
+    let myId = null;
+    let keys = {};
+
+    document.addEventListener("keydown", e => keys[e.key] = true);
+    document.addEventListener("keyup", e => keys[e.key] = false);
+
+    function drawPlayer(player, color = 'white') {
+      ctx.fillStyle = color;
+      ctx.fillRect(player.x, player.y, 32, 32);
+    }
+
+    function updatePlayer(player) {
+      if (keys['ArrowLeft']) player.x -= 2;
+      if (keys['ArrowRight']) player.x += 2;
+      if (keys['ArrowUp'] && player.onGround) {
+        player.vy = -6;
+        player.onGround = false;
+      }
+
+      player.vy += 0.3; // gravity
+      player.y += player.vy;
+
+      // ground collision
+      if (player.y > canvas.height - 32) {
+        player.y = canvas.height - 32;
+        player.vy = 0;
+        player.onGround = true;
+      }
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const me = players[myId];
+      if (me) {
+        updatePlayer(me);
+        socket.send(JSON.stringify(me));
+      }
+
+      for (const id in players) {
+        drawPlayer(players[id], id === myId ? 'lime' : 'cyan');
+      }
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    socket.addEventListener("message", e => {
+      const data = JSON.parse(e.data);
+      players = data.players;
+      if (!myId && data.id) myId = data.id;
+    });
+
+    socket.addEventListener("open", () => {
+      console.log("接続しました");
+    });
+
+    gameLoop();
+  </script>
+</body>
+</html>
