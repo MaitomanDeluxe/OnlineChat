@@ -1,4 +1,4 @@
-const API_URL = "https:/webchat.maikanamaikana.workers.dev/messages";
+const API_URL = "https://webchat.maikanamaikana.workers.dev/messages";
 const log = document.getElementById("log");
 const form = document.getElementById("form");
 const name = document.getElementById("name");
