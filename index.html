@@ -1,28 +1,72 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <title>WSチャット</title>
-</head>
-<body>
-  <h2>チャット</h2>
-  <div id="log" style="border:1px solid #ccc;height:200px;overflow:auto"></div>
-  <input id="msg" placeholder="メッセージ"><button onclick="send()">送信</button>
-
-  <script>
-    const socket = new WebSocket("wss://webchat.maikanamaikana.workers.dev/ws");
-    const log = document.getElementById("log");
-
-    socket.onmessage = e => {
-      log.innerHTML += `<div>${e.data}</div>`;
-      log.scrollTop = log.scrollHeight;
-    };
-
-    function send() {
-      const input = document.getElementById("msg");
-      socket.send(input.value);
-      input.value = "";
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ウェブチャット</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f0f0f0;
     }
-  </script>
-</body>
-</html>
+    #chat-container {
+      display: none;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background-color: white;
+      border-radius: 5px;
+    }
+    #login-container {
+      margin-bottom: 20px;
+    }
+    #messages {
+      height: 300px;
+      overflow-y: scroll;
+      border: 1px solid #ddd;
+      paddingThe rest of the HTML and JavaScript code remains the same as in the previous response for the frontend, but here’s a brief snippet of the JavaScript part to ensure it connects to your Worker:
+
+```javascript
+let ws;
+let username;
+
+function joinChat() {
+  username = document.getElementById("username").value.trim();
+  const room = document.getElementById("room").value.trim();
+  if (!username || !room) {
+    alert("ユーザー名と部屋名を入力してください");
+    return;
+  }
+
+  const workerUrl = `wss://chat.maikanamaikana.workers.dev/?room=${encodeURIComponent(room)}`;
+  ws = new WebSocket(workerUrl);
+
+  ws.onopen = () => {
+    document.getElementById("login-container").style.display = "none";
+    document.getElementById("chat-container").style.display = "block";
+    document.getElementById("room-name").textContent = room;
+  };
+
+  ws.onmessage = (event) => {
+    const messages = document.getElementById("messages");
+    const message = document.createElement("div");
+    message.textContent = event.data;
+    messages.appendChild(message);
+    messages.scrollTop = messages.scrollHeight;
+  };
+
+  ws.onclose = () => {
+    alert("接続が切れました。ページを更新してください。");
+  };
+}
+
+function sendMessage() {
+  const input = document.getElementById("message-input");
+  const message = input.value.trim();
+  if (message && ws) {
+    ws.send(`${username}: ${message}`);
+    input.value = "";
+  }
+}
