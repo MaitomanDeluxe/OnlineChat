@@ -37,8 +37,10 @@
         return;
       }
       const workerUrl = `wss://chat.maikanamaikana.workers.dev/?room=${encodeURIComponent(room)}`;
+      console.log("Connecting to:", workerUrl);
       ws = new WebSocket(workerUrl);
       ws.onopen = () => {
+        console.log("WebSocket connected");
         document.getElementById("login-container").style.display = "none";
         document.getElementById("chat-container").style.display = "block";
         document.getElementById("room-name").textContent = room;
@@ -51,7 +53,12 @@
         messages.scrollTop = messages.scrollHeight;
       };
       ws.onclose = () => {
+        console.log("WebSocket closed");
         alert("接続が切れました。ページを更新してください。");
+      };
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        alert("接続エラーが発生しました。コンソールを確認してください。");
       };
     }
     function sendMessage() {
