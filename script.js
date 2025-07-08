@@ -1,4 +1,5 @@
-const ws = new WebSocket("wss://yourworkername.youraccount.workers.dev"); // ← 書き換えてください
+const ws = new WebSocket("wss://superchat.maikanamaikana.workers.dev");
+
 const form = document.getElementById("form");
 const input = document.getElementById("input");
 const messages = document.getElementById("messages");
