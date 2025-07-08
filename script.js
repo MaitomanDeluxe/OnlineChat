@@ -1,4 +1,4 @@
-const ws = new WebSocket("wss://<your-cloudflare-subdomain>.workers.dev");
+const ws = new WebSocket("wss://yourworkername.youraccount.workers.dev"); // ← 書き換えてください
 const form = document.getElementById("form");
 const input = document.getElementById("input");
 const messages = document.getElementById("messages");
