@@ -5,68 +5,63 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ウェブチャット</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-      background-color: #f0f0f0;
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f0f0f0; }
+    #chat-container { display: none; border: 1px solid #ccc; padding: 10px; background-color: white; border-radius: 5px; }
+    #login-container { margin-bottom: 20px; }
+    #messages { height: 300px; overflow-y: scroll; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; }
+    #message-input { width: 80%; padding: 5px; }
+    button { padding: 5px 10px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+    button:hover { background-color: #0056b3; }
+  </style>
+</head>
+<body>
+  <div id="login-container">
+    <input type="text" id="username" placeholder="ユーザー名を入力">
+    <input type="text" id="room" placeholder="部屋名を入力">
+    <button onclick="joinChat()">チャットに参加</button>
+  </div>
+  <div id="chat-container">
+    <h2>チャットルーム: <span id="room-name"></span></h2>
+    <div id="messages"></div>
+    <input type="text" id="message-input" placeholder="メッセージを入力">
+    <button onclick="sendMessage()">送信</button>
+  </div>
+  <script>
+    let ws;
+    let username;
+    function joinChat() {
+      username = document.getElementById("username").value.trim();
+      const room = document.getElementById("room").value.trim();
+      if (!username || !room) {
+        alert("ユーザー名と部屋名を入力してください");
+        return;
+      }
+      const workerUrl = `wss://chat.maikanamaikana.workers.dev/?room=${encodeURIComponent(room)}`;
+      ws = new WebSocket(workerUrl);
+      ws.onopen = () => {
+        document.getElementById("login-container").style.display = "none";
+        document.getElementById("chat-container").style.display = "block";
+        document.getElementById("room-name").textContent = room;
+      };
+      ws.onmessage = (event) => {
+        const messages = document.getElementById("messages");
+        const message = document.createElement("div");
+        message.textContent = event.data;
+        messages.appendChild(message);
+        messages.scrollTop = messages.scrollHeight;
+      };
+      ws.onclose = () => {
+        alert("接続が切れました。ページを更新してください。");
+      };
     }
-    #chat-container {
-      display: none;
-      border: 1px solid #ccc;
-      padding: 10px;
-      background-color: white;
-      border-radius: 5px;
+    function sendMessage() {
+      const input = document.getElementById("message-input");
+      const message = input.value.trim();
+      if (message && ws) {
+        ws.send(`${username}: ${message}`);
+        input.value = "";
+      }
     }
-    #login-container {
-      margin-bottom: 20px;
-    }
-    #messages {
-      height: 300px;
-      overflow-y: scroll;
-      border: 1px solid #ddd;
-      paddingThe rest of the HTML and JavaScript code remains the same as in the previous response for the frontend, but here’s a brief snippet of the JavaScript part to ensure it connects to your Worker:
-
-```javascript
-let ws;
-let username;
-
-function joinChat() {
-  username = document.getElementById("username").value.trim();
-  const room = document.getElementById("room").value.trim();
-  if (!username || !room) {
-    alert("ユーザー名と部屋名を入力してください");
-    return;
-  }
-
-  const workerUrl = `wss://chat.maikanamaikana.workers.dev/?room=${encodeURIComponent(room)}`;
-  ws = new WebSocket(workerUrl);
-
-  ws.onopen = () => {
-    document.getElementById("login-container").style.display = "none";
-    document.getElementById("chat-container").style.display = "block";
-    document.getElementById("room-name").textContent = room;
-  };
-
-  ws.onmessage = (event) => {
-    const messages = document.getElementById("messages");
-    const message = document.createElement("div");
-    message.textContent = event.data;
-    messages.appendChild(message);
-    messages.scrollTop = messages.scrollHeight;
-  };
-
-  ws.onclose = () => {
-    alert("接続が切れました。ページを更新してください。");
-  };
-}
-
-function sendMessage() {
-  const input = document.getElementById("message-input");
-  const message = input.value.trim();
-  if (message && ws) {
-    ws.send(`${username}: ${message}`);
-    input.value = "";
-  }
-}
+  </script>
+</body>
+</html>
