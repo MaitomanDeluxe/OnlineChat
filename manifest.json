@@ -1,0 +1,15 @@
+{
+  "name": "OnlineChat",
+  "short_name": "Chat",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1e1f22",
+  "theme_color": "#1e1f22",
+  "icons": [
+    {
+      "src": "icon152.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    }
+  ]
+}
