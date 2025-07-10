@@ -1,6 +1,5 @@
 let ws;
 let recaptchaVerified = false;
-const sentMessages = {};
 
 function onCaptchaSuccess() {
   recaptchaVerified = true;
@@ -19,32 +18,14 @@ function connect() {
 }
 
 function send() {
-  const input = document.getElementById("input");
-  const text = input.value.trim();
-
   if (!recaptchaVerified) {
     alert("reCAPTCHA を完了してください");
     return;
   }
 
-  if (text === "") return;
-
-  sentMessages[text] = (sentMessages[text] || 0) + 1;
-  if (sentMessages[text] > 2) {
-    alert("同じメッセージは2回までです");
-    return;
+  const input = document.getElementById("input");
+  if (input.value.trim() !== "") {
+    ws.send(input.value.trim());
+    input.value = "";
   }
-
-  fetch("https://superchat.maikanamaikana.workers.dev/verify", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ message: text, token: grecaptcha.getResponse() })
-  }).then(r => {
-    if (r.ok) {
-      ws.send(text);
-      input.value = "";
-    } else {
-      alert("reCAPTCHA 検証に失敗しました");
-    }
-  });
 }
