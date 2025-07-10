@@ -1,20 +1,50 @@
-const ws = new WebSocket("wss://superchat.maikanamaikana.workers.dev/chat/room1");
+let ws;
+let recaptchaVerified = false;
+const sentMessages = {};
 
-const form = document.getElementById("form");
-const input = document.getElementById("input");
-const messages = document.getElementById("messages");
+function onCaptchaSuccess() {
+  recaptchaVerified = true;
+  document.getElementById("input").disabled = false;
+  connect();
+}
 
-ws.onmessage = (event) => {
-  const div = document.createElement("div");
-  div.textContent = event.data;
-  messages.appendChild(div);
-  messages.scrollTop = messages.scrollHeight;
-};
+function connect() {
+  ws = new WebSocket("wss://superchat.maikanamaikana.workers.dev/chat/room1");
 
-form.onsubmit = (e) => {
-  e.preventDefault();
-  if (input.value.trim()) {
-    ws.send(input.value);
-    input.value = "";
+  ws.onmessage = (event) => {
+    const msg = document.createElement("div");
+    msg.textContent = event.data;
+    document.getElementById("messages").appendChild(msg);
+  };
+}
+
+function send() {
+  const input = document.getElementById("input");
+  const text = input.value.trim();
+
+  if (!recaptchaVerified) {
+    alert("reCAPTCHA を完了してください");
+    return;
   }
-};
+
+  if (text === "") return;
+
+  sentMessages[text] = (sentMessages[text] || 0) + 1;
+  if (sentMessages[text] > 2) {
+    alert("同じメッセージは2回までです");
+    return;
+  }
+
+  fetch("https://superchat.maikanamaikana.workers.dev/verify", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ message: text, token: grecaptcha.getResponse() })
+  }).then(r => {
+    if (r.ok) {
+      ws.send(text);
+      input.value = "";
+    } else {
+      alert("reCAPTCHA 検証に失敗しました");
+    }
+  });
+}
