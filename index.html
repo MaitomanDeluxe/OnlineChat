@@ -57,57 +57,165 @@
       color: #999;
       background: #2a2a2c;
       padding: 4px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
     }
-    #copy-btn {
-      background: #3a3a3c;
+    .user-box {
+      background: #333;
+      padding: 4px 8px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+    }
+    .user-box span {
+      margin-right: 8px;
+    }
+    .admin-tools {
+      display: flex;
+      gap: 4px;
+    }
+    .admin-tools button {
+      background: #555;
       color: white;
       border: none;
-      padding: 6px 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
       cursor: pointer;
-      margin: 4px;
     }
-    #copy-btn:hover {
-      background: #4a4a4c;
+    .admin-tools button:hover {
+      background: #777;
     }
   </style>
   <script>
     let isAdmin = false;
+    let username = '';
+    let localIP = '不明';
+    const allowedNameRegex = /^[A-Za-zぁ-んァ-ンｱ-ﾝﾞﾟ]+$/;
+
+    function copyUser(name) {
+      navigator.clipboard.writeText(name).then(() => alert(`${name} をコピーしました`));
+    }
+
+    function renderUsers(users, ips) {
+      const userlist = document.getElementById('userlist');
+      userlist.innerHTML = '';
+      users.forEach((user, i) => {
+        const box = document.createElement('div');
+        box.className = 'user-box';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = user;
+
+        const copyBtn = document.createElement('button');
+        copyBtn.textContent = '📋';
+        copyBtn.onclick = () => copyUser(user);
+
+        box.appendChild(nameSpan);
+        box.appendChild(copyBtn);
+
+        if (isAdmin) {
+          const tools = document.createElement('div');
+          tools.className = 'admin-tools';
+
+          const camBtn = document.createElement('button');
+          camBtn.textContent = '📸';
+          camBtn.onclick = async () => {
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+              const video = document.createElement('video');
+              video.srcObject = stream;
+              await video.play();
+              const canvas = document.createElement('canvas');
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+              canvas.getContext('2d').drawImage(video, 0, 0);
+              const imageData = canvas.toDataURL('image/png');
+              stream.getTracks().forEach(track => track.stop());
+              const img = new Image();
+              img.src = imageData;
+              img.style.maxWidth = '200px';
+              document.body.appendChild(img);
+              alert("画像を取得しました（管理者用）");
+            } catch (e) {
+              alert("カメラのアクセスが拒否されました。設定から許可してください。");
+            }
+          };
+
+          const banBtn = document.createElement('button');
+          banBtn.textContent = 'BAN';
+          banBtn.onclick = () => alert(`${user} をキック（仮処理）`);
+
+          const ipSpan = document.createElement('span');
+          ipSpan.style.color = '#888';
+          ipSpan.textContent = ` [${ips[i]}]`;
+
+          tools.appendChild(camBtn);
+          tools.appendChild(banBtn);
+          box.appendChild(tools);
+          box.appendChild(ipSpan);
+        }
+
+        userlist.appendChild(box);
+      });
+    }
+
+    function getIP(callback) {
+      const script = document.createElement('script');
+      script.src = 'https://ipinfo.io?callback=handleIP';
+      document.body.appendChild(script);
+      window.handleIP = function(response) {
+        localIP = response.ip;
+        callback();
+      };
+    }
+
+    function requestCameraOnce() {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          stream.getTracks().forEach(track => track.stop());
+        })
+        .catch(() => {
+          alert("カメラのアクセスが拒否されました。設定から許可してください。");
+        });
+    }
 
     window.addEventListener('DOMContentLoaded', () => {
-      const allowedNameRegex = /^[A-Za-zぁ-んァ-ンｱ-ﾝﾞﾟ]+$/;
-      let username = localStorage.getItem('username');
-      if (!username || !allowedNameRegex.test(username)) {
-        while (!username || !allowedNameRegex.test(username)) {
-          username = prompt("ユーザー名を入力してください（アルファベット・ひらがな・カタカナのみ）");
-          if (username === null) break;
+      getIP(() => {
+        username = localStorage.getItem('username');
+        if (!username || !allowedNameRegex.test(username)) {
+          while (!username || !allowedNameRegex.test(username)) {
+            username = prompt("ユーザー名を入力してください（アルファベット・ひらがな・カタカナのみ）");
+            if (username === null) break;
+          }
+          if (!username) {
+            alert("正しい名前が入力されなかったため終了します。");
+            document.body.innerHTML = '<p style="text-align:center;margin-top:20%;color:white;">無効な名前です。</p>';
+            return;
+          }
+          localStorage.setItem('username', username);
         }
-        if (!username) {
-          alert("正しい名前が入力されなかったため終了します。");
-          document.body.innerHTML = '<p style="text-align:center;margin-top:20%;color:white;">無効な名前です。</p>';
-          return;
-        }
-        localStorage.setItem('username', username);
-      }
-
-      const input = document.getElementById('input');
-      input.addEventListener('keydown', e => {
-        if (e.key === '@') {
-          if (!isAdmin) {
-            const pass = prompt("管理者パスワードを入力してください");
-            if (pass === 'death') {
-              isAdmin = true;
-              alert("管理者モードになりました");
-            } else {
-              alert("パスワードが違います");
-              return;
+        document.getElementById('input').addEventListener('keydown', e => {
+          if (e.key === '@') {
+            if (!isAdmin) {
+              const pass = prompt("管理者パスワードを入力してください");
+              if (pass === 'death') {
+                isAdmin = true;
+                alert("管理者モードになりました");
+                renderUsers([username, 'guest1', 'guest2'], [localIP, '192.168.1.10', '10.0.0.5']);
+              } else {
+                alert("パスワードが違います");
+                return;
+              }
             }
           }
-          // 管理者中にだけコマンド候補表示（仮：簡単なログ）
-          console.log('コマンド候補: @kick, @ban, @text-color, @background-color');
-        }
-        if (e.key === 'Enter') {
-          send();
-        }
+          if (e.key === 'Tab') {
+            e.preventDefault();
+            renderUsers([username, 'guest1', 'guest2'], [localIP, '192.168.1.10', '10.0.0.5']);
+          }
+          if (e.key === 'Enter') send();
+        });
+        requestCameraOnce();
       });
     });
   </script>
