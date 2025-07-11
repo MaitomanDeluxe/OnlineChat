@@ -70,6 +70,22 @@
       background: #4a4a4c;
     }
   </style>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const allowedNameRegex = /^[A-Za-zぁ-んァ-ンｱ-ﾝﾞﾟ]+$/;
+      let username = '';
+      while (!username || !allowedNameRegex.test(username)) {
+        username = prompt("ユーザー名を入力してください（アルファベット・ひらがな・カタカナのみ）");
+        if (username === null) break;
+      }
+      if (!username) {
+        alert("正しい名前が入力されなかったため終了します。");
+        document.body.innerHTML = '<p style="text-align:center;margin-top:20%;color:white;">無効な名前です。</p>';
+        return;
+      }
+      localStorage.setItem('username', username);
+    });
+  </script>
 </head>
 <body>
   <div id="messages"></div>
