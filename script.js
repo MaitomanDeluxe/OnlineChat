@@ -1,4 +1,4 @@
-// ✅ script.js（@コマンド補完・キック・個別送信・参加者表示付き）
+// ✅ script.js（パスワード付きコマンド有効化 + 禁止文字ユーザー名チェック）
 
 let ws;
 let userName = "";
@@ -7,6 +7,8 @@ let textColor = "white";
 let backgroundColor = "transparent";
 let kicked = false;
 let userList = new Set();
+let commandsEnabled = false;
+let commandLockout = false;
 
 function connect() {
   ws = new WebSocket("wss://superchat.maikanamaikana.workers.dev/chat/room1");
@@ -51,10 +53,30 @@ function connect() {
 }
 
 function send() {
-  if (kicked) return;
+  if (kicked || commandLockout) return;
   const input = document.getElementById("input");
   const raw = input.value;
   if (raw.trim() === "") return;
+
+  // 🔐 コマンド有効化
+  if (!commandsEnabled && raw.startsWith("@")) {
+    const pass = prompt("パスワードを入力してください：");
+    if (pass === "maito1kanato4@") {
+      commandsEnabled = true;
+      alert("コマンドが有効化されました");
+    } else {
+      alert("パスワードが違います。再読み込みするまでコマンドは使えません。");
+      commandLockout = true;
+    }
+    input.value = "";
+    return;
+  }
+
+  if (!commandsEnabled && raw.startsWith("@")) {
+    alert("コマンドは無効です。リロードしてください。");
+    input.value = "";
+    return;
+  }
 
   if (raw.startsWith("@text-color")) {
     const match = raw.match(/@text-color\s+"?([#\w(),.\s]+)"?/);
@@ -163,6 +185,10 @@ function showSuggestions(e) {
 window.onload = () => {
   while (!userName) {
     userName = prompt("あなたの名前を入力してください：");
+    if (/\s|　|\t|,/.test(userName)) {
+      alert("名前にスペース、全角スペース、タブ、カンマは使えません");
+      userName = "";
+    }
   }
   addOverlayStyle();
   connect();
