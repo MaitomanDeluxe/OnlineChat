@@ -1,4 +1,4 @@
-// ✅ script.js（パスワード付きコマンド有効化 + 禁止文字ユーザー名チェック）
+// ✅ script.js（管理者ボタン付き：deathパスワードでコマンド解放 + ユーザー名クリックでキック + UUID生成）
 
 let ws;
 let userName = "";
@@ -9,6 +9,7 @@ let kicked = false;
 let userList = new Set();
 let commandsEnabled = false;
 let commandLockout = false;
+let isAdmin = false;
 
 function connect() {
   ws = new WebSocket("wss://superchat.maikanamaikana.workers.dev/chat/room1");
@@ -61,7 +62,7 @@ function send() {
   // 🔐 コマンド有効化
   if (!commandsEnabled && raw.startsWith("@")) {
     const pass = prompt("パスワードを入力してください：");
-    if (pass === "maito1kanato4@") {
+    if (pass === "death") {
       commandsEnabled = true;
       alert("コマンドが有効化されました");
     } else {
@@ -114,6 +115,13 @@ function send() {
     return;
   }
 
+  if (raw.startsWith("@uuid")) {
+    const uuid = crypto.randomUUID();
+    alert("生成されたUUID: " + uuid);
+    input.value = "";
+    return;
+  }
+
   const dmMatch = raw.match(/^(.*?)\s+--\"(.+?)\"$/);
   if (dmMatch) {
     const msg = dmMatch[1];
@@ -135,7 +143,21 @@ function send() {
 
 function updateUserList(list) {
   const area = document.getElementById("userlist");
-  area.innerHTML = list.map(u => `<span>${u}</span>`).join(", ");
+  area.innerHTML = "";
+  list.forEach(u => {
+    const span = document.createElement("span");
+    span.textContent = u;
+    if (isAdmin && u !== userName) {
+      span.style.cursor = "pointer";
+      span.onclick = () => {
+        if (confirm(`${u} をキックしますか？`)) {
+          ws.send(`__KICK__${u}`);
+        }
+      };
+    }
+    area.appendChild(span);
+    area.innerHTML += ", ";
+  });
   userList = new Set(list);
 }
 
@@ -168,7 +190,7 @@ function addOverlayStyle() {
 
 function showSuggestions(e) {
   const val = e.target.value;
-  const suggestions = ["@text-color \"#ffffff\"", "@background-color \"rgba(0,0,0,0.5)\"", "@kick \"username\"", "@ban \"username\""];
+  const suggestions = ["@text-color \"#ffffff\"", "@background-color \"rgba(0,0,0,0.5)\"", "@kick \"username\"", "@uuid"];
   const datalist = document.getElementById("sug");
   datalist.innerHTML = "";
   if (val.startsWith("@")) {
@@ -182,15 +204,34 @@ function showSuggestions(e) {
   }
 }
 
+function enableAdminMode() {
+  const pass = prompt("管理者パスワードを入力：");
+  if (pass === "death") {
+    isAdmin = true;
+    alert("管理者モード有効");
+    updateUserList(Array.from(userList));
+  } else {
+    alert("パスワードが違います");
+  }
+}
+
 window.onload = () => {
   while (!userName) {
     userName = prompt("あなたの名前を入力してください：");
-    if (/\s|　|\t|,/.test(userName)) {
-      alert("名前にスペース、全角スペース、タブ、カンマは使えません");
+    if (/\s|　|\t|,|"/.test(userName)) {
+      alert("名前にスペース、全角スペース、タブ、カンマ、\" は使えません");
       userName = "";
     }
   }
   addOverlayStyle();
   connect();
   document.getElementById("input").addEventListener("input", showSuggestions);
+
+  const adminBtn = document.createElement("button");
+  adminBtn.textContent = "管理者モード";
+  adminBtn.style.position = "fixed";
+  adminBtn.style.bottom = "4px";
+  adminBtn.style.right = "4px";
+  adminBtn.onclick = enableAdminMode;
+  document.body.appendChild(adminBtn);
 };
