@@ -8,6 +8,34 @@
   <meta name="theme-color" content="#1e1f22" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <link rel="stylesheet" href="style.css" />
+  <style>
+    #userlist-container {
+      background: #1e1e1e;
+      color: #ccc;
+      padding: 8px;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid #333;
+    }
+    #userlist {
+      flex: 1;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    #copy-btn {
+      background: #333;
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    #copy-btn:hover {
+      background: #555;
+    }
+  </style>
 </head>
 <body>
   <div id="chat">
@@ -16,6 +44,13 @@
     <datalist id="sug"></datalist>
     <button onclick="send()">送信</button>
   </div>
+
+  <!-- 🔽 参加ユーザー表示 ＆ コピー -->
+  <div id="userlist-container">
+    👥 <div id="userlist"></div>
+    <button id="copy-btn" onclick="copyUserList()">コピー</button>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>
