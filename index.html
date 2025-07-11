@@ -2,20 +2,21 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Online Chat</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-152.png">
   <style>
-    body {
-      background-color: #0e0e10;
-      color: #f0f0f0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    html, body {
       margin: 0;
       padding: 0;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0e0e10;
+      color: #f0f0f0;
       display: flex;
       flex-direction: column;
-      height: 100vh;
     }
     #messages {
       flex: 1;
@@ -23,14 +24,33 @@
       padding: 10px;
       background: #1c1c1e;
     }
+    #chat-controls {
+      display: flex;
+      padding: 8px;
+      background-color: #2c2c2e;
+    }
     #input {
-      width: 100%;
+      flex: 1;
       font-size: 1rem;
       padding: 10px;
       border: none;
       outline: none;
-      background-color: #2c2c2e;
+      background-color: #333;
       color: white;
+      border-radius: 4px;
+    }
+    #send-btn {
+      margin-left: 8px;
+      padding: 10px 14px;
+      background-color: #3a3a3c;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    #send-btn:hover {
+      background-color: #4a4a4c;
     }
     #userlist {
       font-size: 0.8rem;
@@ -38,7 +58,7 @@
       background: #2a2a2c;
       padding: 4px;
     }
-    button {
+    #copy-btn {
       background: #3a3a3c;
       color: white;
       border: none;
@@ -46,17 +66,20 @@
       cursor: pointer;
       margin: 4px;
     }
-    button:hover {
+    #copy-btn:hover {
       background: #4a4a4c;
     }
   </style>
 </head>
 <body>
   <div id="messages"></div>
-  <input id="input" placeholder="チャット内容を入力" list="sug" onkeydown="if(event.key==='Enter') send()">
+  <div id="chat-controls">
+    <input id="input" placeholder="チャット内容を入力" list="sug">
+    <button id="send-btn" onclick="send()">送信</button>
+  </div>
   <datalist id="sug"></datalist>
   <div id="userlist"></div>
-  <button onclick="copyUserList()">ユーザーリストをコピー</button>
+  <button id="copy-btn" onclick="copyUserList()">ユーザーリストをコピー</button>
   <script src="script.js"></script>
 </body>
 </html>
