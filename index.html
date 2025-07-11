@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <link rel="stylesheet" href="style.css" type="text/css">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Online Chat</title>
@@ -9,9 +8,9 @@
   <link rel="apple-touch-icon" href="icon-152.png">
   <style>
     body {
-      background: linear-gradient(135deg, #0f0f0f, #1a1a1a);
-      color: white;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(ellipse at center, #0f0f0f 0%, #000000 100%);
+      color: #00ffea;
+      font-family: 'Consolas', 'Courier New', monospace;
       margin: 0;
       padding: 0;
       display: flex;
@@ -23,6 +22,8 @@
       overflow-y: auto;
       padding: 10px;
       background: #111;
+      border-top: 2px solid #00ffea;
+      border-bottom: 2px solid #00ffea;
     }
     #input {
       width: 100%;
@@ -30,25 +31,32 @@
       padding: 10px;
       border: none;
       outline: none;
-      background-color: #222;
-      color: white;
+      background-color: #111;
+      color: #00ffea;
+      border-top: 2px solid #00ffea;
     }
     #userlist {
       font-size: 0.9rem;
       color: #ccc;
       background: #1e1e1e;
-      padding: 4px;
+      padding: 6px;
+      border-top: 1px solid #00ffea;
+      border-bottom: 1px solid #00ffea;
     }
     button {
-      background: #444;
-      color: white;
+      background: linear-gradient(to right, #00ffea, #005eff);
+      color: black;
       border: none;
       padding: 8px 12px;
       cursor: pointer;
       margin: 4px;
+      font-weight: bold;
+      text-shadow: 0 0 2px #00ffff;
+      border-radius: 6px;
     }
     button:hover {
-      background: #666;
+      background: linear-gradient(to right, #005eff, #00ffea);
+      box-shadow: 0 0 5px #00ffff;
     }
   </style>
 </head>
