@@ -125,4 +125,12 @@ window.onload = () => {
   addOverlayStyle();
   connect();
   document.getElementById("input").addEventListener("input", showSuggestions);
+
+  // Enterキーでの送信機能を追加
+  document.getElementById("input").addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault(); // Enterキーによるデフォルトの改行を防ぐ
+      send();
+    }
+  });
 };
