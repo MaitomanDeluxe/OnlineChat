@@ -12,7 +12,7 @@ body {
   background-color: #1e1f22;
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 0 20px rgba(0,255,255,0.2);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
   border: 1px solid #333;
 }
 
@@ -58,4 +58,10 @@ button {
 
 button:hover {
   background-color: #1de9b6;
+}
+
+#userlist {
+  margin-top: 10px;
+  color: #ccc;
+  font-size: 0.85rem;
 }
