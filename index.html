@@ -71,19 +71,44 @@
     }
   </style>
   <script>
+    let isAdmin = false;
+
     window.addEventListener('DOMContentLoaded', () => {
       const allowedNameRegex = /^[A-Za-zぁ-んァ-ンｱ-ﾝﾞﾟ]+$/;
-      let username = '';
-      while (!username || !allowedNameRegex.test(username)) {
-        username = prompt("ユーザー名を入力してください（アルファベット・ひらがな・カタカナのみ）");
-        if (username === null) break;
+      let username = localStorage.getItem('username');
+      if (!username || !allowedNameRegex.test(username)) {
+        while (!username || !allowedNameRegex.test(username)) {
+          username = prompt("ユーザー名を入力してください（アルファベット・ひらがな・カタカナのみ）");
+          if (username === null) break;
+        }
+        if (!username) {
+          alert("正しい名前が入力されなかったため終了します。");
+          document.body.innerHTML = '<p style="text-align:center;margin-top:20%;color:white;">無効な名前です。</p>';
+          return;
+        }
+        localStorage.setItem('username', username);
       }
-      if (!username) {
-        alert("正しい名前が入力されなかったため終了します。");
-        document.body.innerHTML = '<p style="text-align:center;margin-top:20%;color:white;">無効な名前です。</p>';
-        return;
-      }
-      localStorage.setItem('username', username);
+
+      const input = document.getElementById('input');
+      input.addEventListener('keydown', e => {
+        if (e.key === '@') {
+          if (!isAdmin) {
+            const pass = prompt("管理者パスワードを入力してください");
+            if (pass === 'death') {
+              isAdmin = true;
+              alert("管理者モードになりました");
+            } else {
+              alert("パスワードが違います");
+              return;
+            }
+          }
+          // 管理者中にだけコマンド候補表示（仮：簡単なログ）
+          console.log('コマンド候補: @kick, @ban, @text-color, @background-color');
+        }
+        if (e.key === 'Enter') {
+          send();
+        }
+      });
     });
   </script>
 </head>
