@@ -2,10 +2,10 @@ const workerURL = "https://superchat.maikanamaikana.workers.dev";
 
 let username = localStorage.getItem("username");
 if (!username) {
-  username = prompt("名前を入力してください：");
-  if (!username) {
-    alert("名前が必要です。");
-    throw new Error("ユーザー名が未設定");
+  username = prompt("名前を入力してください（ひらがな、カタカナ、英字）");
+  if (!username || !/^[A-Za-zぁ-んァ-ンｱ-ﾝﾞﾟ]+$/.test(username)) {
+    alert("無効な名前です。");
+    throw new Error("ユーザー名が無効");
   }
   localStorage.setItem("username", username);
 }
@@ -16,49 +16,22 @@ const messages = document.getElementById("messages");
 function send() {
   const text = input.value.trim();
   if (!text) return;
-  const isCommand = text.startsWith("@");
 
-  // メッセージ表示
   const msg = document.createElement("div");
-  msg.textContent = isCommand ? `[コマンド] ${text}` : `${username}> ${text}`;
+  msg.textContent = `${username}> ${text}`;
   messages.appendChild(msg);
 
-  // 管理者画像送信（例：@upload-image）
-  if (isCommand && text.startsWith("@upload-image")) {
-    sendImage();
-  }
-
   input.value = "";
-}
+  messages.scrollTop = messages.scrollHeight;
 
-async function sendImage() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    const video = document.createElement("video");
-    video.srcObject = stream;
-    await video.play();
-
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d").drawImage(video, 0, 0);
-    const imageData = canvas.toDataURL("image/png");
-    stream.getTracks().forEach(track => track.stop());
-
-    await fetch(workerURL + "/upload-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: username,
-        imageData: imageData,
-        password: "death"
-      })
-    });
-
-    alert("画像を送信しました（管理者用）");
-  } catch (e) {
-    alert("カメラアクセスが拒否されました");
-  }
+  // 通信が必要であればここで fetch を送る
+  /*
+  fetch(`${workerURL}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, text })
+  }).then(res => res.text()).then(console.log);
+  */
 }
 
 input.addEventListener("keydown", e => {
