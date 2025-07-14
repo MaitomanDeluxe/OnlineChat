@@ -1,39 +1,45 @@
-const workerURL = "https://superchat.maikanamaikana.workers.dev";
+let username = sessionStorage.getItem("username");
 
-let username = localStorage.getItem("username");
-if (!username) {
-  username = prompt("名前を入力してください（ひらがな、カタカナ、英字）");
+if (!username || !/^[A-Za-zぁ-んァ-ンｱ-ﾝﾞﾟ]+$/.test(username)) {
+  username = prompt("名前を入力してください（ひらがな・カタカナ・英字）");
   if (!username || !/^[A-Za-zぁ-んァ-ンｱ-ﾝﾞﾟ]+$/.test(username)) {
     alert("無効な名前です。");
-    throw new Error("ユーザー名が無効");
+    document.body.innerHTML = '<p style="color:white; text-align:center; margin-top:20%;">無効な名前</p>';
+    throw new Error("無効な名前");
   }
-  localStorage.setItem("username", username);
+  sessionStorage.setItem("username", username);
 }
 
-const input = document.getElementById("input");
 const messages = document.getElementById("messages");
+const inputBox = document.getElementById("input");
+
+function appendMessage(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
 
 function send() {
-  const text = input.value.trim();
+  const text = inputBox.value.trim();
   if (!text) return;
 
-  const msg = document.createElement("div");
-  msg.textContent = `${username}> ${text}`;
-  messages.appendChild(msg);
-
-  input.value = "";
+  appendMessage(`${username}> ${text}`);
+  inputBox.value = "";
   messages.scrollTop = messages.scrollHeight;
 
-  // 通信が必要であればここで fetch を送る
-  /*
-  fetch(`${workerURL}/chat`, {
+  // 通信処理が必要であればここに追加
+  fetch('https://superchat.maikanamaikana.workers.dev', {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, text })
-  }).then(res => res.text()).then(console.log);
-  */
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ name: username, text })
+  });
+
 }
 
-input.addEventListener("keydown", e => {
-  if (e.key === "Enter") send();
+inputBox.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    send();
+  }
 });
