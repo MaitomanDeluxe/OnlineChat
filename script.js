@@ -7,7 +7,7 @@ if (!username || !/^[A-Za-zぁ-んァ-ンｱ-ﾝﾞﾟ]+$/.test(username)) {
     document.body.innerHTML = '<p style="color:white; text-align:center; margin-top:20%;">無効な名前</p>';
     throw new Error("無効な名前");
   }
-  sessionStorage.setItem("username", username);
+  sessionStorage.setItem("username", username); // ✅ 保存先を sessionStorage に
 }
 
 const messages = document.getElementById("messages");
@@ -28,13 +28,11 @@ function send() {
   inputBox.value = "";
   messages.scrollTop = messages.scrollHeight;
 
-  // 通信処理が必要であればここに追加
   fetch('https://superchat.maikanamaikana.workers.dev', {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: username, text })
   });
-
 }
 
 inputBox.addEventListener("keydown", e => {
