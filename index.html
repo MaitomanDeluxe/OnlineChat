@@ -5,14 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Online Chat</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       margin: 0;
       background: #1c1c1e;
       color: #f0f0f0;
       font-family: "Segoe UI", sans-serif;
+      height: 100vh;
       display: flex;
       flex-direction: column;
-      height: 100vh;
     }
     #messages {
       flex: 1;
@@ -20,11 +23,13 @@
       padding: 10px;
       white-space: pre-wrap;
       font-family: Consolas, monospace;
+      background: #1c1c1e;
     }
     #chat-controls {
       display: flex;
-      padding: 10px;
-      background: #2a2a2c;
+      flex-shrink: 0;
+      padding: 8px;
+      background-color: #2c2c2e;
     }
     #input {
       flex: 1;
@@ -33,37 +38,68 @@
       border-radius: 4px;
       background: #333;
       color: white;
+      font-size: 14px;
     }
-    button {
+    #send-btn {
       margin-left: 8px;
-      padding: 10px;
-      background: #007bff;
+      padding: 10px 16px;
+      background-color: #444;
+      color: white;
       border: none;
       border-radius: 4px;
-      color: white;
       font-weight: bold;
+      cursor: pointer;
+    }
+    #send-btn:hover {
+      background-color: #666;
     }
   </style>
 </head>
 <body>
   <div id="messages"></div>
   <div id="chat-controls">
-    <input id="input" type="text" placeholder="メッセージを入力" />
-    <button onclick="send()">送信</button>
+    <input id="input" placeholder="メッセージを入力" />
+    <button id="send-btn" onclick="send()">送信</button>
   </div>
 
   <script>
-    let username = prompt("名前を入力してください（再読み込みで変更可）");
-    if (!username) {
-      alert("名前が必要です。");
-      location.reload();
+    let isAdmin = false;
+    let username = '';
+    const ws = new WebSocket("wss://superchat.maikanamaikana.workers.dev/ws");
+
+    // 名前をアルファベット限定で入力
+    while (true) {
+      username = prompt("名前を入力（アルファベットのみ）");
+      if (!username || !/^[A-Za-z]+$/.test(username)) {
+        alert("アルファベットのみ使用可能です。");
+      } else {
+        break;
+      }
     }
 
-    const ws = new WebSocket("wss://superchat.maikanamaikana.workers.dev/ws");
     const messages = document.getElementById("messages");
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
+
+      if (data.type === "system") {
+        const sysMsg = document.createElement("div");
+        sysMsg.style.color = "#888";
+        sysMsg.textContent = `[SYSTEM] ${data.msg}`;
+        messages.appendChild(sysMsg);
+        messages.scrollTop = messages.scrollHeight;
+        return;
+      }
+
+      if (data.to && data.to === username) {
+        const tell = document.createElement("div");
+        tell.style.color = "#aaa";
+        tell.textContent = `@${data.from} → あなたにだけ: ${data.msg}`;
+        messages.appendChild(tell);
+        messages.scrollTop = messages.scrollHeight;
+        return;
+      }
+
       const msg = document.createElement("div");
       msg.textContent = `${data.name}> ${data.msg}`;
       messages.appendChild(msg);
@@ -73,10 +109,57 @@
     function send() {
       const input = document.getElementById("input");
       const text = input.value.trim();
-      if (text) {
-        ws.send(JSON.stringify({ type: "msg", name: username, msg: text }));
+      if (!text) return;
+
+      // 管理者モードのトリガー
+      if (text === "@") {
+        const pass = prompt("管理者パスワードを入力");
+        if (pass === "Death") {
+          isAdmin = true;
+          alert("管理者モードに入りました");
+        } else {
+          alert("パスワードが違います");
+        }
         input.value = "";
+        return;
       }
+
+      // コマンド処理
+      if (isAdmin && text.startsWith("@kick ")) {
+        const target = text.match(/@kick\s+"(.+?)"/);
+        if (target) {
+          ws.send(JSON.stringify({
+            type: "system",
+            action: "kick",
+            target: target[1],
+            from: username
+          }));
+        }
+        input.value = "";
+        return;
+      }
+
+      if (isAdmin && text.startsWith("@tell ")) {
+        const m = text.match(/@tell\s+"(.+?)"\s+(.+)/);
+        if (m) {
+          ws.send(JSON.stringify({
+            type: "private",
+            to: m[1],
+            from: username,
+            msg: m[2]
+          }));
+        }
+        input.value = "";
+        return;
+      }
+
+      // 通常メッセージ
+      ws.send(JSON.stringify({
+        type: "msg",
+        name: username,
+        msg: text
+      }));
+      input.value = "";
     }
 
     document.getElementById("input").addEventListener("keydown", e => {
