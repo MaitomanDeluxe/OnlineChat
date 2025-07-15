@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Online Chat</title>
+  <meta name="theme-color" content="#1e1e1e">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-152.png" />
   <style>
@@ -46,16 +47,16 @@
     #send-btn {
       margin-left: 10px;
       padding: 10px 14px;
-      background-color: #00bcd4;
+      background-color: #444;
       border: none;
       border-radius: 6px;
-      color: #000;
+      color: #fff;
       font-weight: bold;
       cursor: pointer;
     }
 
     #send-btn:hover {
-      background-color: #1de9b6;
+      background-color: #666;
     }
 
     #userlist {
@@ -76,19 +77,6 @@
       gap: 4px;
     }
 
-    .admin-tools button {
-      background: #666;
-      color: white;
-      border: none;
-      padding: 2px 6px;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    .admin-tools button:hover {
-      background: #999;
-    }
-
     @media (max-width: 600px) {
       #input {
         font-size: 12px;
@@ -104,7 +92,7 @@
 <body>
   <div id="messages"></div>
   <div id="chat-controls">
-    <input id="input" placeholder="メッセージを入力" />
+    <input id="input" placeholder="メッセージを入力">
     <button id="send-btn" onclick="send()">送信</button>
   </div>
   <div id="userlist"></div>
@@ -113,29 +101,23 @@
     let ws;
     let username = '';
     let isAdmin = false;
+    let lastMsg = '';
     const allowedName = /^[A-Za-zぁ-んァ-ヶーｱ-ﾝﾞﾟ]+$/;
-    const banned = sessionStorage.getItem("banned") === "true";
 
-    function setupUsername() {
+    function askUsername() {
+      let name;
       while (true) {
-        username = prompt("名前を入力（英字・ひらがな・カタカナのみ）")?.trim();
-        if (!username) continue;
-        if (!allowedName.test(username) || /["\s,]/.test(username)) continue;
-        sessionStorage.setItem("username", username);
-        sessionStorage.setItem("banned", "false");
+        name = prompt("名前を入力（英字・ひらがな・カタカナのみ）")?.trim();
+        if (!name || !allowedName.test(name) || /["\s,]/.test(name)) {
+          alert("無効な名前です。やり直してください。");
+          continue;
+        }
         break;
       }
+      return name;
     }
 
-    if (!sessionStorage.getItem("username") || banned) {
-      setupUsername();
-    }
-
-    username = sessionStorage.getItem("username");
-    if (!username) {
-      alert("名前が未設定です。再読み込みしてください。");
-      throw new Error("名前が設定されていません。");
-    }
+    username = askUsername();
 
     const messagesEl = document.getElementById("messages");
     const inputEl = document.getElementById("input");
@@ -148,26 +130,20 @@
     function send() {
       const msg = inputEl.value.trim();
       if (!msg) return;
+      if (msg === lastMsg) return;
 
-      if (msg === lastMsg) return; // 同じメッセージは送信しない
       lastMsg = msg;
 
       if (msg.startsWith("@")) {
-        // コマンド
-        if (!isAdmin) {
-          const pw = prompt("管理者パスワード:");
-          if (pw === "death") {
-            isAdmin = true;
-            alert("管理者モードになりました");
-          } else {
-            alert("パスワードが違います");
-            return;
-          }
-        }
-        return; // コマンドは送信しない
+        // 管理者コマンド（省略）
+        return;
       }
 
-      ws.send(JSON.stringify({ name: username, text: msg }));
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ name: username, text: msg }));
+      } else {
+        appendMessage("[エラー] サーバーに接続されていません");
+      }
       inputEl.value = "";
     }
 
@@ -175,25 +151,32 @@
       if (e.key === "Enter") send();
     });
 
-    let lastMsg = "";
+    function connect() {
+      ws = new WebSocket("wss://superchat.maikanamaikana.workers.dev");
 
-    ws = new WebSocket("wss://superchat.maikanamaikana.workers.dev");
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ join: username }));
-    };
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ join: username }));
+      };
 
-    ws.onmessage = e => {
-      const data = JSON.parse(e.data);
-      if (data.type === "msg") {
-        appendMessage(`${data.name}> ${data.text}`);
-      } else if (data.type === "system") {
-        appendMessage(`[SYSTEM] ${data.text}`);
-      }
-    };
+      ws.onmessage = e => {
+        const data = JSON.parse(e.data);
+        if (data.type === "msg") {
+          appendMessage(`${data.name}> ${data.text}`);
+        } else if (data.type === "system") {
+          appendMessage(`[SYSTEM] ${data.text}`);
+        }
+      };
 
-    ws.onclose = () => {
-      appendMessage("[切断されました]");
-    };
+      ws.onerror = () => {
+        appendMessage("[接続エラーが発生しました]");
+      };
+
+      ws.onclose = () => {
+        appendMessage("[サーバーとの接続が切断されました]");
+      };
+    }
+
+    connect();
   </script>
 </body>
 </html>
