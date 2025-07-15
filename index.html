@@ -2,21 +2,187 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Online Chat</title>
-  <link rel="manifest" href="manifest.json" />
-  <link rel="apple-touch-icon" href="icon-152.png" />
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      margin: 0;
+      background-color: #1e1e1e;
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      background-color: #2a2a2a;
+      white-space: pre-wrap;
+    }
+    #chat-controls {
+      display: flex;
+      padding: 8px;
+      background-color: #1b1b1b;
+    }
+    #input {
+      flex: 1;
+      padding: 10px;
+      background: #333;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+    #send-btn {
+      margin-left: 8px;
+      padding: 10px 16px;
+      background-color: #00bcd4;
+      border: none;
+      border-radius: 4px;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    #userlist {
+      background: #2e2e2e;
+      padding: 5px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 0.8rem;
+    }
+    .user-box {
+      background: #444;
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .admin {
+      color: #ff9800;
+    }
+    .private {
+      color: #ccc;
+    }
+    .error {
+      text-decoration: red wavy underline;
+    }
+  </style>
 </head>
 <body>
   <div id="messages"></div>
   <div id="chat-controls">
-    <input id="input" placeholder="チャット内容を入力" list="sug" />
-    <button id="send-btn" onclick="send()">送信</button>
+    <input id="input" type="text" placeholder="メッセージ入力" />
+    <button id="send-btn">送信</button>
   </div>
-  <datalist id="sug"></datalist>
   <div id="userlist"></div>
-  <button id="copy-btn" onclick="copyUserList()">ユーザーリストをコピー</button>
-  <script src="script.js"></script>
+  <script>
+    let ws;
+    let username = "";
+    let isAdmin = false;
+    const banned = sessionStorage.getItem("banned") === "true";
+    const allowedName = /^[A-Za-zぁ-んァ-ヶーｱ-ﾝﾞﾟ]+$/;
+
+    function setupUsername() {
+      while (true) {
+        username = prompt("名前を入力（英字・ひらがな・カタカナ）")?.trim();
+        if (!username) continue;
+        if (!allowedName.test(username) || /["\s,]/.test(username)) continue;
+        break;
+      }
+    }
+
+    if (!sessionStorage.getItem("username") || banned) {
+      setupUsername();
+      sessionStorage.setItem("username", username);
+      sessionStorage.setItem("banned", "false");
+    } else {
+      username = sessionStorage.getItem("username");
+    }
+
+    document.getElementById("send-btn").onclick = send;
+    document.getElementById("input").addEventListener("keydown", e => {
+      if (e.key === "Enter") send();
+      if (e.key === "@" && !isAdmin) {
+        const pw = prompt("管理者パスワード");
+        if (pw === "death") {
+          isAdmin = true;
+          alert("管理者モードになりました");
+        } else {
+          alert("パスワードが違います");
+        }
+      }
+    });
+
+    function send() {
+      const input = document.getElementById("input");
+      const text = input.value.trim();
+      if (!text) return;
+      if (text === lastMsg && ++duplicateCount > 1) return;
+      lastMsg = text;
+      duplicateCount = 0;
+
+      if (text.startsWith("@kick")) {
+        if (isAdmin) {
+          const match = text.match(/@kick\s+"(.+?)"/);
+          if (match) {
+            ws.send(JSON.stringify({ cmd: "kick", target: match[1] }));
+            return;
+          }
+        }
+      } else if (text.includes("--")) {
+        const [msg, target] = text.split("--");
+        ws.send(JSON.stringify({ from: username, to: target.replaceAll('"', "").trim(), msg: msg.trim() }));
+      } else {
+        ws.send(JSON.stringify({ from: username, msg: text }));
+      }
+
+      input.value = "";
+    }
+
+    function display(msg, from = "", type = "") {
+      const div = document.getElementById("messages");
+      const span = document.createElement("div");
+      span.textContent = from ? `${from} > ${msg}` : msg;
+      if (type === "private") span.className = "private";
+      div.appendChild(span);
+      div.scrollTop = div.scrollHeight;
+    }
+
+    function updateUsers(list) {
+      const ul = document.getElementById("userlist");
+      ul.innerHTML = "";
+      list.forEach(name => {
+        const box = document.createElement("div");
+        box.className = "user-box";
+        box.textContent = name;
+        ul.appendChild(box);
+      });
+    }
+
+    let lastMsg = "";
+    let duplicateCount = 0;
+
+    ws = new WebSocket("wss://" + location.hostname + "/ws");
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ join: username }));
+    };
+    ws.onmessage = e => {
+      const data = JSON.parse(e.data);
+      if (data.users) updateUsers(data.users);
+      else if (data.kick === username) {
+        sessionStorage.setItem("banned", "true");
+        alert("キックされました");
+        document.body.innerHTML = "<h1 style='color:white;text-align:center'>キックされました</h1>";
+      } else if (data.to === username) {
+        display(`@あなた宛て: "${data.msg}"`, data.from, "private");
+      } else if (data.from) {
+        display(data.msg, data.from);
+      }
+    };
+  </script>
 </body>
 </html>
