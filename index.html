@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Online Chat</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-152.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="messages"></div>
+  <div id="chat-controls">
+    <input id="input" placeholder="チャット内容を入力" list="sug" />
+    <button id="send-btn" onclick="send()">送信</button>
+  </div>
+  <datalist id="sug"></datalist>
+  <div id="userlist"></div>
+  <button id="copy-btn" onclick="copyUserList()">ユーザーリストをコピー</button>
+  <script src="script.js"></script>
+</body>
+</html>
