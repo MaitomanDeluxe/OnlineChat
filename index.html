@@ -1,169 +1,176 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Online Chat</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OnlineChat</title>
   <style>
     * {
       box-sizing: border-box;
     }
     body {
       margin: 0;
-      background: #1c1c1e;
+      background-color: #0e0e10;
+      font-family: 'Segoe UI', sans-serif;
       color: #f0f0f0;
-      font-family: "Segoe UI", sans-serif;
       height: 100vh;
       display: flex;
       flex-direction: column;
     }
     #messages {
       flex: 1;
-      overflow-y: auto;
       padding: 10px;
+      overflow-y: auto;
+      background-color: #1e1f22;
+      font-size: 14px;
       white-space: pre-wrap;
-      font-family: Consolas, monospace;
-      background: #1c1c1e;
     }
     #chat-controls {
       display: flex;
-      flex-shrink: 0;
       padding: 8px;
       background-color: #2c2c2e;
     }
     #input {
       flex: 1;
       padding: 10px;
+      font-size: 14px;
       border: none;
       border-radius: 4px;
-      background: #333;
-      color: white;
-      font-size: 14px;
+      background-color: #333;
+      color: #fff;
     }
-    #send-btn {
+    #send {
       margin-left: 8px;
       padding: 10px 16px;
-      background-color: #444;
-      color: white;
+      background-color: #00bcd4;
       border: none;
       border-radius: 4px;
+      color: #000;
       font-weight: bold;
       cursor: pointer;
     }
-    #send-btn:hover {
-      background-color: #666;
+    #userlist {
+      display: flex;
+      flex-wrap: wrap;
+      padding: 8px;
+      gap: 6px;
+      background-color: #111;
+    }
+    .user-box {
+      padding: 4px 8px;
+      background: #333;
+      border-radius: 4px;
     }
   </style>
 </head>
 <body>
   <div id="messages"></div>
   <div id="chat-controls">
-    <input id="input" placeholder="メッセージを入力" />
-    <button id="send-btn" onclick="send()">送信</button>
+    <input id="input" placeholder="メッセージを入力" list="sug">
+    <button id="send">送信</button>
   </div>
+  <datalist id="sug"></datalist>
+  <div id="userlist"></div>
 
   <script>
     let isAdmin = false;
     let username = '';
-    const ws = new WebSocket("wss://superchat.maikanamaikana.workers.dev/ws");
+    const socket = new WebSocket("wss://superchat.maikanamaikana.workers.dev/ws");
 
-    // 名前をアルファベット限定で入力
-    while (true) {
-      username = prompt("名前を入力（アルファベットのみ）");
-      if (!username || !/^[A-Za-z]+$/.test(username)) {
-        alert("アルファベットのみ使用可能です。");
-      } else {
-        break;
-      }
+    function appendMessage(text, color = "#fff") {
+      const div = document.getElementById("messages");
+      const p = document.createElement("div");
+      p.style.color = color;
+      p.textContent = text;
+      div.appendChild(p);
+      div.scrollTop = div.scrollHeight;
     }
-
-    const messages = document.getElementById("messages");
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      if (data.type === "system") {
-        const sysMsg = document.createElement("div");
-        sysMsg.style.color = "#888";
-        sysMsg.textContent = `[SYSTEM] ${data.msg}`;
-        messages.appendChild(sysMsg);
-        messages.scrollTop = messages.scrollHeight;
-        return;
-      }
-
-      if (data.to && data.to === username) {
-        const tell = document.createElement("div");
-        tell.style.color = "#aaa";
-        tell.textContent = `@${data.from} → あなたにだけ: ${data.msg}`;
-        messages.appendChild(tell);
-        messages.scrollTop = messages.scrollHeight;
-        return;
-      }
-
-      const msg = document.createElement("div");
-      msg.textContent = `${data.name}> ${data.msg}`;
-      messages.appendChild(msg);
-      messages.scrollTop = messages.scrollHeight;
-    };
 
     function send() {
       const input = document.getElementById("input");
-      const text = input.value.trim();
-      if (!text) return;
+      const msg = input.value.trim();
+      if (!msg) return;
+      if (msg === lastMessage) return;
+      lastMessage = msg;
 
-      // 管理者モードのトリガー
-      if (text === "@") {
-        const pass = prompt("管理者パスワードを入力");
-        if (pass === "Death") {
-          isAdmin = true;
-          alert("管理者モードに入りました");
-        } else {
-          alert("パスワードが違います");
-        }
-        input.value = "";
-        return;
-      }
-
-      // コマンド処理
-      if (isAdmin && text.startsWith("@kick ")) {
-        const target = text.match(/@kick\s+"(.+?)"/);
+      if (msg.startsWith('@kick ') && isAdmin) {
+        const target = msg.match(/@kick\s+"(.+?)"/)?.[1];
         if (target) {
-          ws.send(JSON.stringify({
-            type: "system",
-            action: "kick",
-            target: target[1],
-            from: username
-          }));
+          socket.send(JSON.stringify({ type: "system", action: "kick", target }));
+          appendMessage(`* ${target} をキックしました`, "#ffa");
         }
-        input.value = "";
-        return;
-      }
-
-      if (isAdmin && text.startsWith("@tell ")) {
-        const m = text.match(/@tell\s+"(.+?)"\s+(.+)/);
-        if (m) {
-          ws.send(JSON.stringify({
+      } else if (msg.startsWith('@tell ') && isAdmin) {
+        const match = msg.match(/@tell\s+"(.+?)"\s+(.+)/);
+        if (match) {
+          const to = match[1];
+          const privateMsg = match[2];
+          socket.send(JSON.stringify({
             type: "private",
-            to: m[1],
             from: username,
-            msg: m[2]
+            to,
+            msg: privateMsg
           }));
+          appendMessage(`[@${to} に送信] ${privateMsg}`, "#aaa");
         }
-        input.value = "";
-        return;
+      } else {
+        socket.send(JSON.stringify({ type: "msg", name: username, msg }));
       }
 
-      // 通常メッセージ
-      ws.send(JSON.stringify({
-        type: "msg",
-        name: username,
-        msg: text
-      }));
       input.value = "";
     }
 
-    document.getElementById("input").addEventListener("keydown", e => {
+    function promptName() {
+      let name = prompt("名前を入力（アルファベットのみ）");
+      while (!name || !/^[A-Za-z]+$/.test(name)) {
+        name = prompt("名前を入力（アルファベットのみ）");
+      }
+      return name;
+    }
+
+    let lastMessage = "";
+    username = promptName();
+
+    socket.addEventListener("open", () => {
+      appendMessage("接続されました", "#8f8");
+    });
+
+    socket.addEventListener("message", (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === "system") {
+        if (data.msg === "キックされました") {
+          alert("キックされました");
+          document.body.innerHTML = "<h1 style='color:white;text-align:center;'>キックされました</h1>";
+          return;
+        }
+        appendMessage(`[System] ${data.msg}`, "#faa");
+      } else if (data.type === "private" && data.to === username) {
+        appendMessage(`[@あなたに送信されたメッセージです] ${data.msg}`, "#aaa");
+      } else if (data.name && data.msg) {
+        appendMessage(`${data.name}> ${data.msg}`);
+      }
+    });
+
+    document.getElementById("send").onclick = send;
+    document.getElementById("input").addEventListener("keydown", (e) => {
       if (e.key === "Enter") send();
+      if (e.key === "@") {
+        if (!isAdmin) {
+          const pass = prompt("管理者パスワードを入力してください");
+          if (pass === "death") {
+            isAdmin = true;
+            alert("管理者モードになりました");
+          } else {
+            alert("パスワードが違います");
+          }
+        } else {
+          const datalist = document.getElementById("sug");
+          datalist.innerHTML = `
+            <option value='@kick "username"'></option>
+            <option value='@tell "username" メッセージ'></option>
+          `;
+        }
+      }
     });
   </script>
 </body>
