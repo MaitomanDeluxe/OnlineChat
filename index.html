@@ -71,107 +71,114 @@
   </div>
   <datalist id="sug"></datalist>
   <div id="userlist"></div>
+<script>
+  let isAdmin = false;
+  let username = '';
+  const socket = new WebSocket("wss://superchat.maikanamaikana.workers.dev/ws");
 
-  <script>
-    let isAdmin = false;
-    let username = '';
-    const socket = new WebSocket("wss://superchat.maikanamaikana.workers.dev/ws");
+  function send() {
+    const input = document.getElementById("input");
+    const msg = input.value.trim();
+    if (!msg) return;
+    if (msg === lastMessage) return;
+    lastMessage = msg;
 
-    function appendMessage(text, color = "#fff") {
-      const div = document.getElementById("messages");
-      const p = document.createElement("div");
-      p.style.color = color;
-      p.textContent = text;
-      div.appendChild(p);
-      div.scrollTop = div.scrollHeight;
+    // コマンド処理（管理者）
+    if (msg.startsWith('@kick ') && isAdmin) {
+      const target = msg.match(/@kick\s+"(.+?)"/)?.[1];
+      if (target) {
+        socket.send(JSON.stringify({
+          type: "system",
+          action: "kick",
+          target
+        }));
+        appendMessage(`* ${target} をキックしました`, "#ffa");
+      }
+    }
+    else if (msg.startsWith('@tell ') && isAdmin) {
+      const match = msg.match(/@tell\s+"(.+?)"\s+(.+)/);
+      if (match) {
+        const to = match[1];
+        const privateMsg = match[2];
+        socket.send(JSON.stringify({
+          type: "private",
+          from: username,
+          to,
+          msg: privateMsg
+        }));
+        appendMessage(`[@${to} に送信] ${privateMsg}`, "#aaa");
+      }
+    }
+    else {
+      socket.send(JSON.stringify({ type: "msg", name: username, msg }));
     }
 
-    function send() {
-      const input = document.getElementById("input");
-      const msg = input.value.trim();
-      if (!msg) return;
-      if (msg === lastMessage) return;
-      lastMessage = msg;
+    input.value = "";
+  }
 
-      if (msg.startsWith('@kick ') && isAdmin) {
-        const target = msg.match(/@kick\s+"(.+?)"/)?.[1];
-        if (target) {
-          socket.send(JSON.stringify({ type: "system", action: "kick", target }));
-          appendMessage(`* ${target} をキックしました`, "#ffa");
-        }
-      } else if (msg.startsWith('@tell ') && isAdmin) {
-        const match = msg.match(/@tell\s+"(.+?)"\s+(.+)/);
-        if (match) {
-          const to = match[1];
-          const privateMsg = match[2];
-          socket.send(JSON.stringify({
-            type: "private",
-            from: username,
-            to,
-            msg: privateMsg
-          }));
-          appendMessage(`[@${to} に送信] ${privateMsg}`, "#aaa");
+  function appendMessage(text, color = "#fff") {
+    const div = document.getElementById("messages");
+    const p = document.createElement("div");
+    p.style.color = color;
+    p.textContent = text;
+    div.appendChild(p);
+    div.scrollTop = div.scrollHeight;
+  }
+
+  let lastMessage = "";
+  function promptName() {
+    let name = prompt("名前を入力（アルファベットのみ）");
+    while (!name || !/^[A-Za-z]+$/.test(name)) {
+      name = prompt("名前を入力（アルファベットのみ）");
+    }
+    return name;
+  }
+
+  username = promptName();
+
+  socket.addEventListener("open", () => {
+    appendMessage("接続されました", "#8f8");
+  });
+
+  socket.addEventListener("message", (event) => {
+    const data = JSON.parse(event.data);
+
+    if (data.type === "system") {
+      if (data.msg === "キックされました") {
+        alert("キックされました");
+        document.body.innerHTML = "<h1 style='color:white;text-align:center;'>キックされました</h1>";
+        return;
+      }
+      appendMessage(`[System] ${data.msg}`, "#faa");
+    }
+    else if (data.type === "private" && data.to === username) {
+      appendMessage(`[@あなたに送信されたメッセージです] ${data.msg}`, "#aaa");
+    }
+    else if (data.name && data.msg) {
+      appendMessage(`${data.name}> ${data.msg}`);
+    }
+  });
+
+  document.getElementById("send").onclick = send;
+  document.getElementById("input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") send();
+    if (e.key === "@") {
+      if (!isAdmin) {
+        const pass = prompt("管理者パスワードを入力してください");
+        if (pass === "Death") {
+          isAdmin = true;
+          alert("管理者モードになりました");
+        } else {
+          alert("パスワードが違います");
         }
       } else {
-        socket.send(JSON.stringify({ type: "msg", name: username, msg }));
+        document.getElementById("sug").innerHTML = `
+          <option value='@kick "username"'></option>
+          <option value='@tell "username" メッセージ'></option>
+        `;
       }
-
-      input.value = "";
     }
-
-    function promptName() {
-      let name = prompt("名前を入力（アルファベットのみ）");
-      while (!name || !/^[A-Za-z]+$/.test(name)) {
-        name = prompt("名前を入力（アルファベットのみ）");
-      }
-      return name;
-    }
-
-    let lastMessage = "";
-    username = promptName();
-
-    socket.addEventListener("open", () => {
-      appendMessage("接続されました", "#8f8");
-    });
-
-    socket.addEventListener("message", (event) => {
-      const data = JSON.parse(event.data);
-
-      if (data.type === "system") {
-        if (data.msg === "キックされました") {
-          alert("キックされました");
-          document.body.innerHTML = "<h1 style='color:white;text-align:center;'>キックされました</h1>";
-          return;
-        }
-        appendMessage(`[System] ${data.msg}`, "#faa");
-      } else if (data.type === "private" && data.to === username) {
-        appendMessage(`[@あなたに送信されたメッセージです] ${data.msg}`, "#aaa");
-      } else if (data.name && data.msg) {
-        appendMessage(`${data.name}> ${data.msg}`);
-      }
-    });
-
-    document.getElementById("send").onclick = send;
-    document.getElementById("input").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") send();
-      if (e.key === "@") {
-        if (!isAdmin) {
-          const pass = prompt("管理者パスワードを入力してください");
-          if (pass === "Death") {
-            isAdmin = true;
-            alert("管理者モードになりました");
-          } else {
-            alert("パスワードが違います");
-          }
-        } else {
-          const datalist = document.getElementById("sug");
-          datalist.innerHTML = `
-            <option value='@kick "username"'></option>
-            <option value='@tell "username" メッセージ'></option>
-          `;
-        }
-      }
-    });
-  </script>
+  });
+</script>
 </body>
 </html>
