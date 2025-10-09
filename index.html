@@ -11,13 +11,13 @@
     <meta charset="UTF-8">
     <title>OnlineChat</title>
     <style>
-        /* [スタイル部分は変更なし] */
+        /* [既存のスタイルは変更なし] */
         * {
             box-sizing: border-box;
         }
         body {
             margin: 0;
-            background-color: #7b8f94; /* LINE風の背景色 */
+            background-color: #7b8f94; 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             color: #000;
             height: 100vh;
@@ -30,7 +30,9 @@
             background-color: #3d414d;
             color: white;
             padding: 10px;
-            text-align: center;
+            display: flex; /* Flexboxに変更 */
+            justify-content: space-between; /* 左右に要素を配置 */
+            align-items: center;
             font-size: 16px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             z-index: 10;
@@ -39,6 +41,16 @@
             margin: 0;
             font-size: 1em;
             font-weight: bold;
+            flex-grow: 1; /* 中央寄せのため */
+            text-align: center;
+        }
+        #settings-tab {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 14px;
+            padding: 0 10px;
+            cursor: pointer;
         }
 
         /* メッセージ表示エリア */
@@ -48,7 +60,7 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 15px; /* メッセージ間の余白 */
+            gap: 15px; 
         }
 
         /* メッセージコンテナの共通スタイル */
@@ -68,8 +80,8 @@
             border-radius: 18px;
             font-size: 14px;
             line-height: 1.4;
-            word-wrap: break-word; /* 長い単語を折り返す */
-            white-space: pre-wrap; /* 改行を反映 */
+            word-wrap: break-word; 
+            white-space: pre-wrap; 
         }
 
         /* 他人のメッセージ (左側) */
@@ -88,10 +100,10 @@
             align-items: flex-end;
         }
         .my-message .sender-name {
-            display: none; /* 自分の名前は表示しない */
+            display: none; 
         }
         .my-message .message-bubble {
-            background-color: #8de041; /* LINE風の緑色 */
+            background-color: #8de041; 
             border-top-right-radius: 4px;
         }
 
@@ -149,11 +161,91 @@
         #userlist {
             display: none;
         }
+
+        /* =====================================
+           🔔 設定画面 (オーバーレイ) のスタイル
+           ===================================== */
+        #settings-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); /* 半透明の黒背景 */
+            z-index: 1000; /* 最前面に表示 */
+            display: none; /* 初期状態は非表示 */
+            align-items: center;
+            justify-content: center;
+        }
+        .settings-content {
+            background-color: #f9f9f9;
+            width: 90%;
+            max-width: 400px;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .settings-content h2 {
+            margin-top: 0;
+            font-size: 20px;
+            color: #3d414d;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        #close-settings {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #666;
+            cursor: pointer;
+        }
+        .status-item {
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px dotted #ccc;
+            font-size: 14px;
+        }
+        .status-granted { color: #28a745; font-weight: bold; }
+        .status-denied { color: #dc3545; font-weight: bold; }
+        .status-default { color: #ffc107; font-weight: bold; }
+        .settings-button-group button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #request-permission-button {
+            background-color: #007bff;
+            color: white;
+        }
+        #test-notification-button {
+            background-color: #28a745;
+            color: white;
+        }
+        .status-message {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #555;
+            padding: 5px;
+            background-color: #eee;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
     <header id="chat-header">
+        <div></div> 
         <h1>OnlineChat</h1>
+        <button id="settings-tab">設定</button>
     </header>
     <div id="messages"></div>
     <div id="chat-controls">
@@ -163,14 +255,41 @@
     <datalist id="sug"></datalist>
     <div id="userlist"></div>
 
+    <div id="settings-overlay">
+        <div class="settings-content">
+            <button id="close-settings">&times;</button>
+            <h2>通知設定とテスト</h2>
+
+            <div id="notification-status">
+                <div class="status-item">Service Worker: <span id="swStatus">未登録</span></div>
+                <div class="status-item">通知権限: <span id="permissionStatus">不明</span></div>
+                <div class="status-item status-message">Service Workerパス: <span id="basePath">...</span></div>
+            </div>
+
+            <div class="settings-button-group">
+                <button id="request-permission-button">通知の権限をリクエスト</button>
+                <button id="test-notification-button" disabled>テスト通知を表示 (5秒後)</button>
+            </div>
+        </div>
+    </div>
+
 <script>
     let isAdmin = false;
     let username = '';
-    // WebSocket URLは変更せずそのまま使用
     const socket = new WebSocket("wss://superchat.maikanamaikana.workers.dev/ws");
     let lastMessage = "";
 
     let swRegistration = null;
+
+    // DOM要素の取得
+    const swStatus = document.getElementById('swStatus');
+    const permissionStatus = document.getElementById('permissionStatus');
+    const basePathElement = document.getElementById('basePath');
+    const requestPermissionButton = document.getElementById('request-permission-button');
+    const testNotificationButton = document.getElementById('test-notification-button');
+    const settingsOverlay = document.getElementById('settings-overlay');
+    const settingsTab = document.getElementById('settings-tab');
+    const closeSettingsButton = document.getElementById('close-settings');
 
     // ===============================================
     // 🔔 Service Worker パス/スコープの自動計算 (GitHub Pages対応) 🔔
@@ -180,37 +299,134 @@
     const swPath = `${repoName}/sw.js`;
     const swScope = `${repoName}/`; 
     
+    basePathElement.textContent = swPath;
+    
+    /**
+     * ステータス表示を更新する
+     */
+    function updateStatus() {
+        const permission = Notification.permission;
+        permissionStatus.textContent = permission;
+        permissionStatus.className = '';
+        
+        // テストボタンの有効化/無効化
+        const isReady = permission === 'granted' && swRegistration !== null;
+        testNotificationButton.disabled = !isReady;
+
+        // 権限リクエストボタンの状態
+        if (permission === 'granted') {
+            permissionStatus.classList.add('status-granted');
+            requestPermissionButton.disabled = true;
+            requestPermissionButton.textContent = "通知は許可済みです";
+        } else if (permission === 'denied') {
+            permissionStatus.classList.add('status-denied');
+            requestPermissionButton.disabled = true;
+            requestPermissionButton.textContent = "OS設定でブロックされています";
+        } else {
+            permissionStatus.classList.add('status-default');
+            requestPermissionButton.disabled = false;
+            requestPermissionButton.textContent = "通知の権限をリクエスト";
+        }
+        
+        swStatus.textContent = swRegistration ? '登録済み' : '未登録';
+        swStatus.style.color = swRegistration ? '#28a745' : '#dc3545';
+        swStatus.classList.add(swRegistration ? 'status-granted' : 'status-denied');
+    }
+
     // 1. Service Workerの登録
-    if ("serviceWorker" in navigator) {
+    function registerServiceWorker() {
+        if (!("serviceWorker" in navigator)) {
+            swStatus.textContent = "未サポート";
+            return;
+        }
+        
         navigator.serviceWorker.register(swPath, { scope: swScope })
             .then((reg) => {
                 console.log("Service worker registered successfully. Path:", swPath, "Scope:", swScope);
                 swRegistration = reg;
-                // 2. 通知の権限リクエスト（登録成功後）
-                return Notification.requestPermission();
-            })
-            .then((permission) => {
-                if (permission === "granted") {
-                    console.log("Notification permission granted.");
-                } else {
-                    console.log("Notification permission denied or dismissed.");
+                updateStatus(); // ステータス更新
+                // 登録が完了したら、権限がまだ'default'ならリクエストを促す
+                if (Notification.permission === 'default') {
+                    // 何もしない。ボタンからリクエストを促す。
                 }
             })
             .catch((error) => {
-                console.error("Service worker registration or notification request failed:", error);
+                console.error("Service worker registration failed. CHECK PATH/SCOPE:", error);
+                swStatus.textContent = `失敗: ${error.message}`;
+                updateStatus(); // ステータス更新
             });
-    } else {
-        console.warn("Service workers are not supported in this browser.");
     }
 
     /**
-     * メッセージを画面に表示する関数
+     * 通知権限をリクエストする
      */
+    requestPermissionButton.addEventListener('click', () => {
+        Notification.requestPermission()
+            .then((permission) => {
+                console.log("Notification permission:", permission);
+                updateStatus();
+                if (permission === 'denied') {
+                    alert('通知が拒否されました。iPadの設定アプリから手動で許可してください。');
+                }
+            })
+            .catch((error) => console.error("Permission request failed:", error));
+    });
+
+    /**
+     * テスト通知を表示する (5秒遅延)
+     */
+    function showDelayedNotification() {
+        if (Notification.permission === 'granted' && swRegistration) {
+            
+            const bodyMessage = 'ボタンを押してから5秒後に届きました！';
+            
+            swRegistration.showNotification('⏱️ テスト通知', {
+                body: bodyMessage,
+                icon: `${repoName}/apple-touch-icon.png`, 
+                tag: 'test-notification',
+                renotify: true,
+                badge: `${repoName}/apple-touch-icon.png`
+            })
+            .catch(error => {
+                console.error('Failed to show delayed notification:', error);
+            });
+        }
+    }
+
+    testNotificationButton.addEventListener('click', () => {
+        if (testNotificationButton.disabled) {
+            alert('Service Workerが未登録か、通知権限がありません。');
+            return;
+        }
+        
+        // 5秒後に通知を表示する関数をスケジュール
+        setTimeout(showDelayedNotification, 5000);
+
+        // ユーザーに状況を伝えるアラートを即座に表示
+        alert('✅ 5秒後に通知が表示されます。ホーム画面に戻って（バックグラウンドにして）お待ちください。');
+    });
+
+    // ===============================================
+    // ⚙️ 設定画面の開閉ロジック
+    // ===============================================
+    settingsTab.addEventListener('click', () => {
+        settingsOverlay.style.display = 'flex';
+        updateStatus(); // 開くたびに最新のステータスに更新
+    });
+
+    closeSettingsButton.addEventListener('click', () => {
+        settingsOverlay.style.display = 'none';
+    });
+
+    // ===============================================
+    // 💬 チャット機能（メッセージ処理）
+    // ===============================================
+    
     function appendMessage(name, text, options = {}) {
+        // [省略：メッセージ表示ロジックは変更なし]
         const { isMine = false, type = 'user' } = options;
         const messagesDiv = document.getElementById("messages");
 
-        // [省略：メッセージ表示ロジックは変更なし]
         if (type === 'system') {
             const p = document.createElement("div");
             p.className = 'system-message';
@@ -291,11 +507,10 @@
     socket.addEventListener("message", (event) => {
         const data = JSON.parse(event.data);
 
-        // 自分のメッセージは送信時に表示済みなので、サーバーからのブロードキャストは無視する
         if (data.name === username) return;
 
         if (data.type === "system") {
-            // [省略：システムメッセージ処理は変更なし]
+            // ... システムメッセージ処理 ...
             if (data.msg === "キックされました") {
                 alert("キックされました");
                 document.body.innerHTML = "<h1 style='color:white;text-align:center;'>キックされました</h1>";
@@ -304,12 +519,11 @@
             appendMessage(null, `[System] ${data.msg}`, { type: 'system' });
 
         } else if (data.type === "private" && data.to === username) {
-            // [省略：DMメッセージ表示は変更なし]
+            // ... DMメッセージ処理 ...
             appendMessage(null, `[${data.from}からのDM] ${data.msg}`, { type: 'system' });
             
             // DM受信時の通知表示
             if (Notification.permission === "granted" && swRegistration) {
-                // LINE風の通知メッセージ
                 swRegistration.showNotification(`${data.from}からプライベートメッセージ`, {
                     body: data.msg,
                     icon: `${repoName}/apple-touch-icon.png`, 
@@ -320,12 +534,10 @@
         } else if (data.name && data.msg) {
             appendMessage(data.name, data.msg, { isMine: false });
             
-            // 💡 一般メッセージ受信時の通知表示（LINEのような動作）
-            // document.hiddenは、アプリが非アクティブ（バックグラウンド、最小化など）の場合にtrue
+            // 一般メッセージ受信時の通知表示
             if (document.hidden && Notification.permission === "granted" && swRegistration) {
-                // LINE風の通知メッセージ
                 swRegistration.showNotification(`新着メッセージ: ${data.name}`, {
-                    body: data.msg, // メッセージ本文を表示
+                    body: data.msg, 
                     icon: `${repoName}/apple-touch-icon.png`,
                     tag: 'new-chat-message',
                 });
@@ -336,7 +548,7 @@
     document.getElementById("send").onclick = send;
     document.getElementById("input").addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.isComposing) {
-            e.preventDefault(); // Enterでの改行を防ぐ
+            e.preventDefault(); 
             send();
         }
         if (e.key === "@") {
@@ -356,6 +568,9 @@
             }
         }
     });
+    
+    // アプリ起動時にService Worker登録を試みる
+    window.onload = registerServiceWorker; 
 </script>
 </body>
 </html>
