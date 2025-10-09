@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="OnlineChat" />
@@ -12,7 +11,7 @@
     <meta charset="UTF-8">
     <title>OnlineChat</title>
     <style>
-        /* 全体設定 */
+        /* [スタイル部分は変更なし] */
         * {
             box-sizing: border-box;
         }
@@ -167,23 +166,26 @@
 <script>
     let isAdmin = false;
     let username = '';
+    // WebSocket URLは変更せずそのまま使用
     const socket = new WebSocket("wss://superchat.maikanamaikana.workers.dev/ws");
     let lastMessage = "";
 
-    // Service WorkerのRegistrationオブジェクトを保持するための変数
     let swRegistration = null;
 
     // ===============================================
-    // 🔔 PWA/Web Push 通知機能の組み込み 🔔
+    // 🔔 Service Worker パス/スコープの自動計算 (GitHub Pages対応) 🔔
     // ===============================================
-
-    // 1. Service Workerの登録と通知の権限リクエスト
+    const pathSegments = window.location.pathname.split('/').filter(Boolean);
+    const repoName = pathSegments.length > 0 ? `/${pathSegments[0]}` : '';
+    const swPath = `${repoName}/sw.js`;
+    const swScope = `${repoName}/`; 
+    
+    // 1. Service Workerの登録
     if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/sw.js")
+        navigator.serviceWorker.register(swPath, { scope: swScope })
             .then((reg) => {
-                console.log("Service worker registered.", reg);
-                swRegistration = reg; // 登録オブジェクトを保存
-
+                console.log("Service worker registered successfully. Path:", swPath, "Scope:", swScope);
+                swRegistration = reg;
                 // 2. 通知の権限リクエスト（登録成功後）
                 return Notification.requestPermission();
             })
@@ -203,26 +205,21 @@
 
     /**
      * メッセージを画面に表示する関数
-     * @param {string} name - 送信者名 (システムメッセージの場合はnull)
-     * @param {string} text - メッセージ本文
-     * @param {object} options - オプション
-     * @param {boolean} options.isMine - 自分のメッセージかどうか
-     * @param {string} options.type - 'user' or 'system'
      */
     function appendMessage(name, text, options = {}) {
         const { isMine = false, type = 'user' } = options;
         const messagesDiv = document.getElementById("messages");
 
+        // [省略：メッセージ表示ロジックは変更なし]
         if (type === 'system') {
             const p = document.createElement("div");
             p.className = 'system-message';
             p.textContent = text;
             messagesDiv.appendChild(p);
-        } else { // ユーザーメッセージ
+        } else {
             const container = document.createElement("div");
             container.className = 'message-container ' + (isMine ? 'my-message' : 'other-message');
 
-            // 他人のメッセージの場合のみ名前を表示
             if (!isMine) {
                 const nameSpan = document.createElement("span");
                 nameSpan.className = 'sender-name';
@@ -247,7 +244,7 @@
         if (msg === lastMessage) return;
         lastMessage = msg;
 
-        // コマンド処理（管理者）
+        // [省略：コマンド処理ロジックは変更なし]
         if (msg.startsWith('@kick ') && isAdmin) {
             const target = msg.match(/@kick\s+"(.+?)"/)?.[1];
             if (target) {
@@ -272,7 +269,6 @@
             }
         } else {
             socket.send(JSON.stringify({ type: "msg", name: username, msg }));
-            // 自分のメッセージを送信時に画面に表示
             appendMessage(username, msg, { isMine: true });
         }
         input.value = "";
@@ -299,20 +295,24 @@
         if (data.name === username) return;
 
         if (data.type === "system") {
+            // [省略：システムメッセージ処理は変更なし]
             if (data.msg === "キックされました") {
                 alert("キックされました");
                 document.body.innerHTML = "<h1 style='color:white;text-align:center;'>キックされました</h1>";
                 return;
             }
             appendMessage(null, `[System] ${data.msg}`, { type: 'system' });
+
         } else if (data.type === "private" && data.to === username) {
+            // [省略：DMメッセージ表示は変更なし]
             appendMessage(null, `[${data.from}からのDM] ${data.msg}`, { type: 'system' });
             
             // DM受信時の通知表示
             if (Notification.permission === "granted" && swRegistration) {
-                swRegistration.showNotification(`DM: ${data.from}`, {
+                // LINE風の通知メッセージ
+                swRegistration.showNotification(`${data.from}からプライベートメッセージ`, {
                     body: data.msg,
-                    icon: '/apple-touch-icon.png', 
+                    icon: `${repoName}/apple-touch-icon.png`, 
                     tag: 'private-message', 
                 });
             }
@@ -320,12 +320,13 @@
         } else if (data.name && data.msg) {
             appendMessage(data.name, data.msg, { isMine: false });
             
-            // 一般メッセージ受信時の通知表示
-            // document.hiddenは、ブラウザタブがアクティブでない（背景にある、最小化されているなど）場合にtrue
+            // 💡 一般メッセージ受信時の通知表示（LINEのような動作）
+            // document.hiddenは、アプリが非アクティブ（バックグラウンド、最小化など）の場合にtrue
             if (document.hidden && Notification.permission === "granted" && swRegistration) {
+                // LINE風の通知メッセージ
                 swRegistration.showNotification(`新着メッセージ: ${data.name}`, {
-                    body: data.msg,
-                    icon: '/apple-touch-icon.png',
+                    body: data.msg, // メッセージ本文を表示
+                    icon: `${repoName}/apple-touch-icon.png`,
                     tag: 'new-chat-message',
                 });
             }
