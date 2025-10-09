@@ -28,11 +28,8 @@ self.addEventListener('notificationclick', (event) => {
       }
       // 既存のウィンドウがない場合は、新しく開く
       if (clients.openWindow) {
-        return clients.openWindow('/');
+        return clients.openWindow('./'); // アプリのベースパスを開く
       }
     })
   );
 });
-
-// 💡 注意: サーバーからの真の「Web Push」を行う場合は、
-// self.addEventListener('push', ...) のイベントリスナーをここに追加する必要があります。
