@@ -11,7 +11,7 @@
     <meta charset="UTF-8">
     <title>OnlineChat</title>
     <style>
-        /* [既存のスタイルは変更なし] */
+        /* [既存のスタイル] */
         * {
             box-sizing: border-box;
         }
@@ -25,13 +25,12 @@
             flex-direction: column;
         }
 
-        /* ヘッダー */
         #chat-header {
             background-color: #3d414d;
             color: white;
             padding: 10px;
-            display: flex; /* Flexboxに変更 */
-            justify-content: space-between; /* 左右に要素を配置 */
+            display: flex; 
+            justify-content: space-between; 
             align-items: center;
             font-size: 16px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -41,7 +40,7 @@
             margin: 0;
             font-size: 1em;
             font-weight: bold;
-            flex-grow: 1; /* 中央寄せのため */
+            flex-grow: 1; 
             text-align: center;
         }
         #settings-tab {
@@ -53,7 +52,6 @@
             cursor: pointer;
         }
 
-        /* メッセージ表示エリア */
         #messages {
             flex: 1;
             padding: 20px 10px;
@@ -63,7 +61,6 @@
             gap: 15px; 
         }
 
-        /* メッセージコンテナの共通スタイル */
         .message-container {
             display: flex;
             flex-direction: column;
@@ -84,7 +81,6 @@
             white-space: pre-wrap; 
         }
 
-        /* 他人のメッセージ (左側) */
         .other-message {
             align-self: flex-start;
             align-items: flex-start;
@@ -94,7 +90,6 @@
             border-top-left-radius: 4px;
         }
 
-        /* 自分のメッセージ (右側) */
         .my-message {
             align-self: flex-end;
             align-items: flex-end;
@@ -107,7 +102,6 @@
             border-top-right-radius: 4px;
         }
 
-        /* システムメッセージ (中央) */
         .system-message {
             align-self: center;
             background-color: rgba(0, 0, 0, 0.2);
@@ -118,7 +112,6 @@
             text-align: center;
         }
 
-        /* チャットコントロール（入力欄と送信ボタンのコンテナ） */
         #chat-controls {
             display: flex;
             padding: 8px;
@@ -126,7 +119,6 @@
             border-top: 1px solid #ddd;
             align-items: center;
         }
-        /* 入力欄 */
         #input {
             flex: 1;
             padding: 10px;
@@ -141,7 +133,6 @@
             border-color: #007bff;
         }
 
-        /* 送信ボタン */
         #send {
             margin-left: 8px;
             padding: 10px 16px;
@@ -157,7 +148,6 @@
             background-color: #0056b3;
         }
 
-        /* 元のユーザーリストは非表示に */
         #userlist {
             display: none;
         }
@@ -171,9 +161,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.7); /* 半透明の黒背景 */
-            z-index: 1000; /* 最前面に表示 */
-            display: none; /* 初期状態は非表示 */
+            background-color: rgba(0, 0, 0, 0.7); 
+            z-index: 1000; 
+            display: none; 
             align-items: center;
             justify-content: center;
         }
@@ -205,6 +195,9 @@
             cursor: pointer;
         }
         .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 10px;
             padding: 8px 0;
             border-bottom: 1px dotted #ccc;
@@ -238,6 +231,59 @@
             padding: 5px;
             background-color: #eee;
             border-radius: 4px;
+            display: block; /* 常に表示 */
+        }
+        
+        /* トグルスイッチのスタイル */
+        .switch {
+          position: relative;
+          display: inline-block;
+          width: 40px;
+          height: 24px;
+        }
+        .switch input { 
+          opacity: 0;
+          width: 0;
+          height: 0;
+        }
+        .slider {
+          position: absolute;
+          cursor: pointer;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: #ccc;
+          -webkit-transition: .4s;
+          transition: .4s;
+        }
+        .slider:before {
+          position: absolute;
+          content: "";
+          height: 18px;
+          width: 18px;
+          left: 3px;
+          bottom: 3px;
+          background-color: white;
+          -webkit-transition: .4s;
+          transition: .4s;
+        }
+        input:checked + .slider {
+          background-color: #2196F3;
+        }
+        input:focus + .slider {
+          box-shadow: 0 0 1px #2196F3;
+        }
+        input:checked + .slider:before {
+          -webkit-transform: translateX(16px);
+          -ms-transform: translateX(16px);
+          transform: translateX(16px);
+        }
+        .slider.round {
+          border-radius: 34px;
+        }
+        .slider.round:before {
+          border-radius: 50%;
         }
     </style>
 </head>
@@ -262,12 +308,23 @@
 
             <div id="notification-status">
                 <div class="status-item">Service Worker: <span id="swStatus">未登録</span></div>
-                <div class="status-item">通知権限: <span id="permissionStatus">不明</span></div>
-                <div class="status-item status-message">Service Workerパス: <span id="basePath">...</span></div>
+                <div class="status-item">OS通知権限: <span id="permissionStatus">不明</span></div>
+                
+                <div class="status-item">
+                    <span>チャット通知 (アプリ内オフ):</span>
+                    <label class="switch">
+                        <input type="checkbox" id="notificationToggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <div class="status-item status-message">
+                    💡 **重要**: Service Workerパス: <span id="basePath">...</span>
+                </div>
             </div>
 
             <div class="settings-button-group">
-                <button id="request-permission-button">通知の権限をリクエスト</button>
+                <button id="request-permission-button">OS通知の権限をリクエスト</button>
                 <button id="test-notification-button" disabled>テスト通知を表示 (5秒後)</button>
             </div>
         </div>
@@ -280,6 +337,7 @@
     let lastMessage = "";
 
     let swRegistration = null;
+    const NOTIF_STORAGE_KEY = 'chat_notification_enabled'; // 通知ON/OFFの状態を保存するキー
 
     // DOM要素の取得
     const swStatus = document.getElementById('swStatus');
@@ -290,6 +348,7 @@
     const settingsOverlay = document.getElementById('settings-overlay');
     const settingsTab = document.getElementById('settings-tab');
     const closeSettingsButton = document.getElementById('close-settings');
+    const notificationToggle = document.getElementById('notificationToggle'); // トグルボタンを取得
 
     // ===============================================
     // 🔔 Service Worker パス/スコープの自動計算 (GitHub Pages対応) 🔔
@@ -300,6 +359,15 @@
     const swScope = `${repoName}/`; 
     
     basePathElement.textContent = swPath;
+
+    /**
+     * ローカルストレージから通知設定の状態を取得する
+     * @returns {boolean} true: 通知オフ, false: 通知オン
+     */
+    function isNotificationOff() {
+        // localStorageが'false'という文字列の場合は通知オフ
+        return localStorage.getItem(NOTIF_STORAGE_KEY) === 'false';
+    }
     
     /**
      * ステータス表示を更新する
@@ -317,7 +385,7 @@
         if (permission === 'granted') {
             permissionStatus.classList.add('status-granted');
             requestPermissionButton.disabled = true;
-            requestPermissionButton.textContent = "通知は許可済みです";
+            requestPermissionButton.textContent = "OS通知は許可済みです";
         } else if (permission === 'denied') {
             permissionStatus.classList.add('status-denied');
             requestPermissionButton.disabled = true;
@@ -325,12 +393,17 @@
         } else {
             permissionStatus.classList.add('status-default');
             requestPermissionButton.disabled = false;
-            requestPermissionButton.textContent = "通知の権限をリクエスト";
+            requestPermissionButton.textContent = "OS通知の権限をリクエスト";
         }
         
         swStatus.textContent = swRegistration ? '登録済み' : '未登録';
-        swStatus.style.color = swRegistration ? '#28a745' : '#dc3545';
         swStatus.classList.add(swRegistration ? 'status-granted' : 'status-denied');
+
+        // トグルボタンの状態を更新
+        if (notificationToggle) {
+            // isNotificationOff()がfalse（通知オン）ならチェックを入れる
+            notificationToggle.checked = !isNotificationOff();
+        }
     }
 
     // 1. Service Workerの登録
@@ -344,19 +417,19 @@
             .then((reg) => {
                 console.log("Service worker registered successfully. Path:", swPath, "Scope:", swScope);
                 swRegistration = reg;
-                updateStatus(); // ステータス更新
-                // 登録が完了したら、権限がまだ'default'ならリクエストを促す
-                if (Notification.permission === 'default') {
-                    // 何もしない。ボタンからリクエストを促す。
-                }
+                updateStatus(); 
             })
             .catch((error) => {
                 console.error("Service worker registration failed. CHECK PATH/SCOPE:", error);
                 swStatus.textContent = `失敗: ${error.message}`;
-                updateStatus(); // ステータス更新
+                updateStatus(); 
             });
     }
 
+    // ===============================================
+    // 💡 設定画面のイベントリスナー
+    // ===============================================
+    
     /**
      * 通知権限をリクエストする
      */
@@ -378,7 +451,7 @@
     function showDelayedNotification() {
         if (Notification.permission === 'granted' && swRegistration) {
             
-            const bodyMessage = 'ボタンを押してから5秒後に届きました！';
+            const bodyMessage = 'ボタンを押してから5秒後に届きました！（アプリ内オフ設定を無視して送信）';
             
             swRegistration.showNotification('⏱️ テスト通知', {
                 body: bodyMessage,
@@ -395,20 +468,33 @@
 
     testNotificationButton.addEventListener('click', () => {
         if (testNotificationButton.disabled) {
-            alert('Service Workerが未登録か、通知権限がありません。');
+            alert('Service Workerが未登録か、OS通知権限がありません。');
             return;
         }
         
-        // 5秒後に通知を表示する関数をスケジュール
         setTimeout(showDelayedNotification, 5000);
 
-        // ユーザーに状況を伝えるアラートを即座に表示
-        alert('✅ 5秒後に通知が表示されます。ホーム画面に戻って（バックグラウンドにして）お待ちください。');
+        alert('✅ 5秒後に通知が表示されます。アプリを開いたままでも届きます。');
+    });
+    
+    /**
+     * 通知トグルボタンの処理
+     */
+    notificationToggle.addEventListener('change', () => {
+        const isChecked = notificationToggle.checked;
+        // チェックが入っている(true)なら通知ON、チェックなし(false)なら通知OFFとしてlocalStorageに保存
+        localStorage.setItem(NOTIF_STORAGE_KEY, isChecked ? 'true' : 'false');
+        
+        if (!isChecked) {
+            alert("アプリ内通知がオフになりました。新しいメッセージがあってもOS通知はされません。");
+        } else {
+             alert("アプリ内通知がオンになりました。");
+        }
+        updateStatus();
     });
 
-    // ===============================================
-    // ⚙️ 設定画面の開閉ロジック
-    // ===============================================
+
+    // 設定画面の開閉ロジック
     settingsTab.addEventListener('click', () => {
         settingsOverlay.style.display = 'flex';
         updateStatus(); // 開くたびに最新のステータスに更新
@@ -523,7 +609,7 @@
             appendMessage(null, `[${data.from}からのDM] ${data.msg}`, { type: 'system' });
             
             // DM受信時の通知表示
-            if (Notification.permission === "granted" && swRegistration) {
+            if (Notification.permission === "granted" && swRegistration && !isNotificationOff()) {
                 swRegistration.showNotification(`${data.from}からプライベートメッセージ`, {
                     body: data.msg,
                     icon: `${repoName}/apple-touch-icon.png`, 
@@ -534,8 +620,8 @@
         } else if (data.name && data.msg) {
             appendMessage(data.name, data.msg, { isMine: false });
             
-            // 一般メッセージ受信時の通知表示
-            if (document.hidden && Notification.permission === "granted" && swRegistration) {
+            // 💡 一般メッセージ受信時の通知表示 (document.hiddenチェックを削除し、トグル設定をチェック)
+            if (Notification.permission === "granted" && swRegistration && !isNotificationOff()) {
                 swRegistration.showNotification(`新着メッセージ: ${data.name}`, {
                     body: data.msg, 
                     icon: `${repoName}/apple-touch-icon.png`,
